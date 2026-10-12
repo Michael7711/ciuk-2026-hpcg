@@ -1,0 +1,3 @@
+[2026-10-12T17:41:06.699] error: execve(): /mnt/nfs/epccfs/projects/tc079/tc079/shared/ciuk-2026-epcc/common/./hpl_smoke: No such file or directory
+srun: error: cs-n0000: task 0: Exited with exit code 2
+srun: Terminating StepId=553128.0
