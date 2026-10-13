@@ -1,0 +1,4 @@
+hpl/results/raw/
+hpl/results/slurm/
+hpl/results/work/
+.DS_Store

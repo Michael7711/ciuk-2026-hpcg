@@ -1,0 +1,2 @@
+run_id,job_id,timestamp_utc,git_commit,purpose,nodes,mpi_ranks,omp_threads,N,NB,P,Q,compiler,compiler_flags,hpl_runtime_s,slurm_elapsed_s,gflops,energy_j,avg_power_w,gflops_per_w,residual_status,slurm_state,input_file
+HPL-validation-554008,554008,2026-10-13T08:47:41.952900+00:00,a680135c3d93fdc3bd3954e60c4bccd3fe6d284a,validation,1,4,1,1000,64,2,2,PrgEnv-cray,-O3,0.03,5,22.777,1071.0,214.2,0.10633520074696547,PASSED,COMPLETED,HPL_validation.dat
