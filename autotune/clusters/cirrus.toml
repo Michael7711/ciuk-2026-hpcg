@@ -41,7 +41,7 @@ threads = [1, 2, 4, 12]
 max_pq_ratio = 5.0
 
 [model]
-noise_sd = 0.002
+noise_sd = 0.004
 
 
 [energy]
