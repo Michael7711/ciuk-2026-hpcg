@@ -1,4 +1,5 @@
 hpl/results/raw/
 hpl/results/slurm/
 hpl/results/work/
+hpl/results/exploratory_analysis
 .DS_Store
