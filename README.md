@@ -8,4 +8,4 @@ The experiments use Slurm and Python scripts to automate runs and collect result
 
 Experiment notes are in [docs/hpcg](docs/hpcg/experiment_log.md).
 
-The automation is based on [Rog's CIUK project](https://github.com/roryhory/ciuk-2026-epcc). HPCG itself comes from the [official benchmark repository](https://github.com/hpcg-benchmark/hpcg).
+The automation is based on [Rory's CIUK project](https://github.com/roryhory/ciuk-2026-epcc). HPCG itself comes from the [official benchmark repository](https://github.com/hpcg-benchmark/hpcg).
