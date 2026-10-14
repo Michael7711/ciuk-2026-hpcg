@@ -2,7 +2,7 @@
 #SBATCH --job-name=hpl
 #SBATCH --account=tc079-abszero
 #SBATCH --partition=standard
-#SBATCH --qos=short
+#SBATCH --qos=standard
 #SBATCH --time=00:10:00
 
 set -e
@@ -18,6 +18,7 @@ INPUT_FILE="$1"
 NODES="$2"
 MPI_RANKS="$3"
 OMP_THREADS="$4"
+TASKS_PER_NODE=$((MPI_RANKS / NODES))
 
 RUN_ID="HPL-${SLURM_JOB_NAME#hpl_}-${SLURM_JOB_ID}"
 
@@ -51,6 +52,7 @@ echo
 srun \
     --nodes="$NODES" \
     --ntasks="$MPI_RANKS" \
+    --ntasks-per-node="$TASKS_PER_NODE" \
     --cpus-per-task="$OMP_THREADS" \
     --cpu-bind=cores \
     "$HPL_BINARY" \
