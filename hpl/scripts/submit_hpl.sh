@@ -15,39 +15,6 @@ INPUT_ARG="$1"
 NODES="$2"
 MPI_RANKS="$3"
 OMP_THREADS="$4"
-
-if (( MPI_RANKS % NODES != 0 )); then
-    echo "MPI ranks ($MPI_RANKS) must be divisible by nodes ($NODES)"
-    exit 1
-fi
-
-if [ ! -f "$INPUT_FILE" ]; then
-    echo "Input file not found: $INPUT_FILE"
-    exit 1
-fi
-
-if (( MPI_RANKS % NODES != 0 )); then
-    echo "MPI ranks ($MPI_RANKS) must be divisible by nodes ($NODES)"
-    exit 1
-fi
-
-TASKS_PER_NODE=$((MPI_RANKS / NODES))
-
-P=$(awk '$2 == "Ps" {print $1; exit}' "$INPUT_FILE")
-Q=$(awk '$2 == "Qs" {print $1; exit}' "$INPUT_FILE")
-
-if [[ -z "$P" || -z "$Q" ]]; then
-    echo "Could not read P and Q from input file: $INPUT_FILE"
-    exit 1
-fi
-
-if (( P * Q != MPI_RANKS )); then
-    echo "Invalid HPL configuration:"
-    echo "  P × Q = $P × $Q = $((P * Q))"
-    echo "  MPI ranks = $MPI_RANKS"
-    exit 1
-fi
-
 PURPOSE="$5"
 
 REPO_ROOT=/epccfs/tc079/tc079/shared/ciuk-2026-epcc
@@ -57,14 +24,42 @@ RUN_SCRIPT="$HPL_ROOT/scripts/run_hpl.sh"
 RECORDER="$HPL_ROOT/scripts/record_hpl_result.py"
 CSV_FILE="$HPL_ROOT/results/hpl_runs.csv"
 
+# Resolve input path
 if [[ "$INPUT_ARG" = /* ]]; then
     INPUT_FILE="$INPUT_ARG"
 else
     INPUT_FILE="$REPO_ROOT/$INPUT_ARG"
 fi
 
+# Check input exists
 if [ ! -f "$INPUT_FILE" ]; then
     echo "Input file not found: $INPUT_FILE"
+    exit 1
+fi
+
+# Check MPI ranks divide evenly across nodes
+if (( MPI_RANKS % NODES != 0 )); then
+    echo "MPI ranks ($MPI_RANKS) must be divisible by nodes ($NODES)"
+    exit 1
+fi
+
+TASKS_PER_NODE=$((MPI_RANKS / NODES))
+
+# Read HPL process grid
+P=$(awk '$2 == "Ps" {print $1; exit}' "$INPUT_FILE")
+Q=$(awk '$2 == "Qs" {print $1; exit}' "$INPUT_FILE")
+
+if [[ -z "$P" || -z "$Q" ]]; then
+    echo "Could not read P and Q from input file: $INPUT_FILE"
+    exit 1
+fi
+
+# Check process grid matches MPI rank count
+if (( P * Q != MPI_RANKS )); then
+    echo "Invalid HPL configuration:"
+    echo "  P × Q = $P × $Q = $((P * Q))"
+    echo "  MPI ranks = $MPI_RANKS"
+    echo "P × Q must equal the number of MPI ranks."
     exit 1
 fi
 
