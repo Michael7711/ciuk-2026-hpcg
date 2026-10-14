@@ -323,20 +323,20 @@ def fetch_sacct(job_id):
 
 
 def record_run(run_dir, job_id, log, sacct_text=None, min_window_s=0, manual=(None, None), elapsed_s=None):
-    """Parse a finished run directory and append one row to the CSV log. Returns the row.
+    """Parse a finished run directory and append one row to the CSV log. Returns the row."""
 
-    Energy preference: node counters around the benchmark (if the job wrote them) > sacct (whole
-    job; `sacct_text` from fetch_sacct) > manual (energy_j, window_s).
-    """
-    from .config import Config  # local import: config does not depend on results
+    from .config import Config
+
+    run_dir = Path(os.path.abspath(run_dir))
+
     provenance_path = run_dir / 'provenance.json'
     provenance = (
         json.loads(provenance_path.read_text())
         if provenance_path.exists()
         else {}
     )
-    run_dir = Path(os.path.abspath(run_dir))
-    cfg = Config(**json.loads((run_dir / "config.json").read_text()))
+
+    cfg = Config(**json.loads((run_dir / 'config.json').read_text()))
     raw = run_dir / f"slurm-{job_id}.out"
     if cfg.benchmark == "hpcg":  # HPCG 3.1 writes HPCG-Benchmark_*.txt (key-value; was YAML pre-3.1)
         summaries = sorted(run_dir.glob("HPCG-Benchmark*"))
