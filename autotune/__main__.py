@@ -161,7 +161,7 @@ def main():
     s.add_argument("--beta", type=float, default=2.0, help="exploration weight (0 = exploit only)")
     s.add_argument("--efficiency-weight", type=float, default=0.0,
                    help="weight of GFLOPS/W relative to GFLOPS (needs energy data)")
-    s.add_argument("--min-rows", type=int, default=6, help="below this, use a random initial design")
+    s.add_argument("--min-rows", type=int, default=6, help="below this many unique usable configurations, use the initial design")
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--dry-run", action="store_true", help="print only, write no run directories")
     s.set_defaults(fn=cmd_suggest)
@@ -174,7 +174,7 @@ def main():
     s.add_argument("--nodes", type=int, default=1)
     s.add_argument("--kind", choices=KINDS, default="diagnostic")
     s.add_argument("--beta", type=float, default=1.0, help="GP exploration weight")
-    s.add_argument("--min-rows", type=int, default=6, help="below this many usable rows: random design")
+    s.add_argument("--min-rows", type=int, default=6, help="below this many unique usable configurations, use the initial design")
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--config-list", help="JSON file of configurations, for --strategy list")
     s.add_argument("--log", help="default: [paths] log in settings")

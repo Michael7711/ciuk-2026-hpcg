@@ -17,8 +17,13 @@ from pathlib import Path
 
 from .candidates import generate
 from .config import HPL_DEFAULTS, Config, validate
-from .jobs import prepare_run, run_id, walltime_s
-from .model import suggest, training_rows
+from .jobs import build_identity, prepare_run, run_id, walltime_s
+from .model import (
+    config_key,
+    row_to_config,
+    suggest,
+    unique_training_config_count,
+)
 from .prior import prior_init, prior_order
 from .results import _slurm_seconds, fetch_sacct, load_rows, record_run
 
@@ -100,15 +105,37 @@ def evaluate(cfg, settings, hw, runs_dir, log):
 
 
 def unseen(cands, rows, runs_dir, settings):
-    """Candidates neither in the log nor already prepared for this executable build."""
-    seen = {r['run_id'] for r in rows}
+    """Candidates not already evaluated or prepared for the current executable build."""
+    if not cands:
+        return []
+
+    builds = {
+        benchmark: build_identity(settings, benchmark)
+        for benchmark in {c.benchmark for c in cands}
+    }
+
+    seen = set()
+
+    for r in rows:
+        benchmark = r.get('benchmark')
+        identity = builds.get(benchmark)
+
+        if identity is None:
+            continue
+
+        if (
+            r.get('build_id') != identity['build_id']
+            or r.get('binary_sha256') != identity['binary_sha256']
+        ):
+            continue
+
+        seen.add(config_key(row_to_config(r)))
 
     return [
         c for c in cands
-        if run_id(c, settings) not in seen
+        if config_key(c) not in seen
         and not (Path(runs_dir) / run_id(c, settings)).exists()
     ]
-
 
 def load_config_list(path, hw):
     """Explicit evaluation list for stages that re-measure chosen configurations (transfer subsets, weak scaling,
@@ -128,17 +155,24 @@ def pick(strategy, rows, cands, n, beta, min_rows, seed, hw=None, full=None, n_i
     heuristic walk down the hardware prior (autotune/prior.py)
     hybrid    prior_init start, then GP-UCB; if failures leave too few usable rows, keep walking the prior
     """
+    n_unique = unique_training_config_count(rows, 'gflops')
     if strategy == "random":
         return random.Random(f"{seed}-{len(rows)}").sample(cands, min(n, len(cands)))
     if strategy == "list":                      # the given order, skipping what was already evaluated
         return [c for c in order if c in cands][:n]
     if strategy == "heuristic":
         return prior_order(cands, hw)[:n]
-    if strategy == "hybrid":
-        if len(rows) < n_init:
-            start = [c for c in prior_init(full or cands, hw, n_init) if c in cands]
-            return start[:min(n, n_init - len(rows))]
-        if len(training_rows(rows, "gflops")) < min_rows:
+    if strategy == 'hybrid':
+        if n_unique < n_init:
+            start = [
+                c for c in prior_init(full or cands, hw, n_init)
+                if c in cands
+            ]
+
+            if start:
+                return start[:min(n, n_init - n_unique)]
+
+        if n_unique < min_rows:
             return prior_order(cands, hw)[:n]
     return [c for c, _ in suggest(rows, cands, n, 0.0, beta, min_rows, seed, noise_sd=noise_sd)]
 

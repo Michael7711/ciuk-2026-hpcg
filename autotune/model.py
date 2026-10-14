@@ -32,6 +32,15 @@ def row_to_config(row):
     return Config(row["benchmark"], nodes, int(row["mpi_ranks"]) // nodes,
                   int(row["omp_threads"]), params, row["kind"])
 
+def config_key(cfg):
+    """Benchmark configuration identity, ignoring experiment kind/replicate."""
+    return (
+        cfg.benchmark,
+        cfg.nodes,
+        cfg.ranks_per_node,
+        cfg.threads,
+        tuple(sorted(cfg.params.items())),
+    )
 
 def features(cfg):
     """Config -> numeric vector. Edit freely: this is the main modelling decision.
@@ -67,6 +76,16 @@ def training_rows(rows, target):
         keep.append(r)
     return keep
 
+def unique_training_config_count(rows, target):
+    """Number of distinct usable benchmark configurations.
+
+    Repeat measurements remain separate rows for GP fitting, but count as one
+    configuration when deciding whether the initial design is complete.
+    """
+    return len({
+        config_key(row_to_config(r))
+        for r in training_rows(rows, target)
+    })
 
 # ---------- Gaussian process ----------
 
@@ -175,11 +194,11 @@ def select(configs, models, weights, n, beta=2.0):
 def suggest(rows, configs, n, efficiency_weight=0.0, beta=2.0, min_rows=6, seed=0, noise_sd=0.02, make_model=None):
     """Next experiments to run. Returns [(Config, explanation string)].
 
-    With fewer than `min_rows` usable history rows there is nothing to model, so it falls back
+    With fewer than `min_rows` unique usable configurations there is nothing to model, so it falls back
     to a seeded random initial design. efficiency_weight > 0 adds gflops_per_w (needs energy
     data in the log) to the objective with that weight relative to gflops (weight 1).
     """
-    if len(training_rows(rows, "gflops")) < min_rows:
+    if unique_training_config_count(rows, 'gflops') < min_rows:
         return [(c, "initial design (not enough data to model)")
                 for c in random.Random(seed).sample(configs, min(n, len(configs)))]
     weights = {"gflops": 1.0}
