@@ -71,7 +71,12 @@ def cmd_threads(a, settings, hw):
 def cmd_suggest(a, settings, hw):
     """Pick the next experiments from the history, write their run dirs (no submission)."""
     rows = load_rows(a.log, a.benchmark) if Path(a.log).exists() else []
-    cands = unseen(generate(a.benchmark, hw, a.nodes, settings[a.benchmark], a.kind), rows, a.runs_dir)
+    cands = unseen(
+        generate(a.benchmark, hw, a.nodes, settings[a.benchmark], a.kind),
+        rows,
+        a.runs_dir,
+        settings,
+    )
     for c, why in suggest(rows, cands, a.n, a.efficiency_weight, a.beta, a.min_rows, a.seed):
         print(f"{c.ranks_per_node}x{c.threads} {c.params}\n    {why}")
         if not a.dry_run:
@@ -93,7 +98,15 @@ def cmd_usage(a, settings, hw):
 def cmd_record(a, settings, hw):
     row = record_run(a.run_dir, a.job_id, a.log, fetch_sacct(a.job_id) if a.sacct else None,
                      settings.get("energy", {}).get("sacct_min_window_s", 0), (a.energy_j, a.elapsed_s))
-    print({k: row[k] for k in ("validation", "parse_status", "gflops", "energy_j", "energy_status", "gflops_per_w")})
+    print({k: row[k] for k in (
+        'build_id',
+        'validation',
+        'parse_status',
+        'gflops',
+        'energy_j',
+        'energy_status',
+        'gflops_per_w',
+    )})
 
 
 def main():

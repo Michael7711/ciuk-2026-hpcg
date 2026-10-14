@@ -2,7 +2,9 @@
 import hashlib
 import json
 import os
+import subprocess
 from dataclasses import asdict
+from functools import lru_cache
 from pathlib import Path
 
 from .config import HPL_DEFAULTS
@@ -94,10 +96,84 @@ def render_input(cfg):
     return (HPL_DAT if cfg.benchmark == "hpl" else HPCG_DAT).format(**params)
 
 
-def run_id(cfg):
-    """Deterministic ID: same config -> same ID."""
-    digest = hashlib.sha1(json.dumps(asdict(cfg), sort_keys=True).encode()).hexdigest()[:8]
-    return f"{cfg.benchmark}-{cfg.kind}-n{cfg.nodes}-{cfg.ranks_per_node}x{cfg.threads}-{digest}"
+@lru_cache(maxsize=None)
+def _binary_sha256_cached(path, mtime_ns, size):
+    """SHA-256 of a binary, cached for this process while the file is unchanged."""
+    h = hashlib.sha256()
+
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(chunk)
+
+    return h.hexdigest()
+
+
+def binary_sha256(path):
+    """SHA-256 of a binary. File metadata makes the cache invalidate after a rebuild."""
+    path = Path(path)
+    stat = path.stat()
+
+    return _binary_sha256_cached(
+        str(path),
+        stat.st_mtime_ns,
+        stat.st_size,
+    )
+
+
+def build_identity(settings, benchmark):
+    """Build information that determines experimental identity."""
+    benchmark_settings = settings[benchmark]
+    binary = str(benchmark_settings['binary'])
+
+    if not Path(binary).is_file():
+        raise FileNotFoundError(f'benchmark binary not found: {binary}')
+
+    return {
+        'build_id': benchmark_settings.get('build_id', ''),
+        'binary_path': binary,
+        'binary_sha256': binary_sha256(binary),
+    }
+
+
+def git_commit():
+    """Git commit of the autotuner/repository used to prepare the run."""
+    repo_root = Path(__file__).resolve().parents[1]
+
+    result = subprocess.run(
+        ['git', '-C', str(repo_root), 'rev-parse', 'HEAD'],
+        capture_output=True,
+        text=True,
+    )
+
+    return result.stdout.strip() if result.returncode == 0 else 'unknown'
+
+
+def collect_provenance(cfg, settings):
+    """Complete reproducibility metadata saved alongside a prepared run."""
+    return {
+        **build_identity(settings, cfg.benchmark),
+        'git_commit': git_commit(),
+    }
+
+
+def run_id(cfg, settings):
+    """Deterministic ID: same config + same executable build -> same ID."""
+    build = build_identity(settings, cfg.benchmark)
+
+    identity = {
+        'config': asdict(cfg),
+        'build_id': build['build_id'],
+        'binary_sha256': build['binary_sha256'],
+    }
+
+    digest = hashlib.sha1(
+        json.dumps(identity, sort_keys=True).encode()
+    ).hexdigest()[:8]
+
+    return (
+        f'{cfg.benchmark}-{cfg.kind}-n{cfg.nodes}-'
+        f'{cfg.ranks_per_node}x{cfg.threads}-{digest}'
+    )
 
 
 def walltime_s(cfg, settings):
@@ -106,7 +182,7 @@ def walltime_s(cfg, settings):
     return settings["slurm"]["walltime_s"]
 
 
-def render_job_script(cfg, settings, hw, run_dir):
+def render_job_script(cfg, settings, hw, run_dir, run_name):
     s = settings["slurm"]
     binary = settings[cfg.benchmark]["binary"]
     qos = s.get("final_qos") if cfg.kind == "final" else s.get("qos")
@@ -118,7 +194,7 @@ def render_job_script(cfg, settings, hw, run_dir):
     share = hw.cores_per_node // cfg.ranks_per_node  # cores owned by each rank
     lines = [
         "#!" + s.get("shell", "/bin/bash --login"),  # Cirrus needs a login shell for `module`
-        f"#SBATCH --job-name={run_id(cfg)}",
+        f'#SBATCH --job-name={run_name}',
         f"#SBATCH --nodes={cfg.nodes}",
         f"#SBATCH --ntasks-per-node={cfg.ranks_per_node}",
         f"#SBATCH --cpus-per-task={share}",
@@ -173,15 +249,43 @@ def render_job_script(cfg, settings, hw, run_dir):
 
 
 def prepare_run(cfg, settings, hw, runs_dir):
-    """Write config.json, the benchmark input file, wrapper and job.sh. Does NOT submit."""
-    run_dir = Path(os.path.abspath(runs_dir)) / run_id(cfg)  # abspath: keep /epccfs symlink as given
-    prefix = settings.get("paths", {}).get("required_prefix", "")
+    """Write config, provenance, benchmark input, wrapper and job script. Does NOT submit."""
+    provenance = collect_provenance(cfg, settings)
+    name = run_id(cfg, settings)
+
+    run_dir = Path(os.path.abspath(runs_dir)) / name
+    prefix = settings.get('paths', {}).get('required_prefix', '')
+
     if not str(run_dir).startswith(prefix):
-        raise ValueError(f"{run_dir} must be under {prefix} (compute nodes cannot see other filesystems)")
-    run_dir.mkdir(parents=True)  # raises if it exists: never overwrite raw outputs
-    (run_dir / "config.json").write_text(json.dumps(asdict(cfg), indent=2))
-    (run_dir / INPUT_FILE[cfg.benchmark]).write_text(render_input(cfg))
-    (run_dir / "bench_wrapper.sh").write_text(render_wrapper(settings, hw.cores_per_node // cfg.ranks_per_node))
-    (run_dir / "bench_wrapper.sh").chmod(0o755)
-    (run_dir / "job.sh").write_text(render_job_script(cfg, settings, hw, run_dir))
+        raise ValueError(
+            f'{run_dir} must be under {prefix} '
+            '(compute nodes cannot see other filesystems)'
+        )
+
+    run_dir.mkdir(parents=True)
+
+    (run_dir / 'config.json').write_text(
+        json.dumps(asdict(cfg), indent=2)
+    )
+
+    (run_dir / 'provenance.json').write_text(
+        json.dumps(provenance, indent=2)
+    )
+
+    (run_dir / INPUT_FILE[cfg.benchmark]).write_text(
+        render_input(cfg)
+    )
+
+    (run_dir / 'bench_wrapper.sh').write_text(
+        render_wrapper(
+            settings,
+            hw.cores_per_node // cfg.ranks_per_node,
+        )
+    )
+    (run_dir / 'bench_wrapper.sh').chmod(0o755)
+
+    (run_dir / 'job.sh').write_text(
+        render_job_script(cfg, settings, hw, run_dir, name)
+    )
+
     return run_dir

@@ -99,10 +99,15 @@ def evaluate(cfg, settings, hw, runs_dir, log):
                       settings.get("energy", {}).get("sacct_min_window_s", 0))
 
 
-def unseen(cands, rows, runs_dir):
-    """Candidates neither in the log nor already prepared in runs_dir."""
-    seen = {r["run_id"] for r in rows}
-    return [c for c in cands if run_id(c) not in seen and not (Path(runs_dir) / run_id(c)).exists()]
+def unseen(cands, rows, runs_dir, settings):
+    """Candidates neither in the log nor already prepared for this executable build."""
+    seen = {r['run_id'] for r in rows}
+
+    return [
+        c for c in cands
+        if run_id(c, settings) not in seen
+        and not (Path(runs_dir) / run_id(c, settings)).exists()
+    ]
 
 
 def load_config_list(path, hw):
@@ -145,7 +150,7 @@ def run_loop(benchmark, strategy, max_new, batch, nodes, kind, settings, hw, run
     while done < max_new:
         rows = load_rows(log, benchmark) if Path(log).exists() else []
         full = config_list if strategy == "list" else generate(benchmark, hw, nodes, settings[benchmark], kind)
-        cands = unseen(full, rows, runs_dir)
+        cands = unseen(full, rows, runs_dir, settings)
         if not cands:
             break
         noise_sd = settings.get("model", {}).get("noise_sd", 0.02)

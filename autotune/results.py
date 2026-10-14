@@ -7,12 +7,15 @@ import subprocess
 from pathlib import Path
 
 COLUMNS = [
-    "run_id", "kind", "benchmark", "nodes", "mpi_ranks", "omp_threads",
-    "N", "NB", "P", "Q", "pfact", "rfact", "bcast", "depth",  # HPL
-    "nx", "ny", "nz", "hpcg_runtime_s",                       # HPCG
-    "runtime_s", "elapsed_s", "gflops", "energy_j", "energy_window_s", "energy_source", "energy_status",
-    "avg_power_w", "gflops_per_w",
-    "job_id", "validation", "parse_status", "raw_output",
+    'run_id', 'kind', 'benchmark',
+    'build_id', 'binary_path', 'binary_sha256', 'git_commit',
+    'nodes', 'mpi_ranks', 'omp_threads',
+    'N', 'NB', 'P', 'Q', 'pfact', 'rfact', 'bcast', 'depth',
+    'nx', 'ny', 'nz', 'hpcg_runtime_s',
+    'runtime_s', 'elapsed_s', 'gflops', 'energy_j',
+    'energy_window_s', 'energy_source', 'energy_status',
+    'avg_power_w', 'gflops_per_w',
+    'job_id', 'validation', 'parse_status', 'raw_output',
 ]
 # validation:   HPL "PASSED"/"FAILED"; HPCG "VALID"/"INVALID"; otherwise "unknown"
 # parse_status: "ok", "no_result_found", "no_output", "unsupported"
@@ -231,19 +234,39 @@ def check_threads(run_dir, comm):
     return out
 
 
-def make_row(cfg, run_id, parsed, job_id=None, energy=None, raw_output=""):
+def make_row(
+    cfg,
+    run_id,
+    parsed,
+    job_id=None,
+    energy=None,
+    raw_output='',
+    provenance=None,
+):
     """Combine config + parsed output + energy dict into one CSV row dict.
 
     avg_power_w = energy_j / energy_window_s (all nodes together); gflops_per_w = gflops /
     avg_power_w, only when energy_status == "ok". The window covers the whole benchmark process
     (setup + solve), while gflops covers only the timed phase, so short runs read a little low.
     """
-    p, energy = cfg.params, energy or {}
+    p = cfg.params
+    energy = energy or {}
+    provenance = provenance or {}
+
     row = {c: "" for c in COLUMNS}
     row.update(
-        run_id=run_id, kind=cfg.kind, benchmark=cfg.benchmark, nodes=cfg.nodes,
-        mpi_ranks=cfg.mpi_ranks, omp_threads=cfg.threads, job_id=job_id or "",
-        hpcg_runtime_s=p.get("runtime_s", "") if cfg.benchmark == "hpcg" else "",
+        run_id=run_id,
+        kind=cfg.kind,
+        benchmark=cfg.benchmark,
+        build_id=provenance.get('build_id', ''),
+        binary_path=provenance.get('binary_path', ''),
+        binary_sha256=provenance.get('binary_sha256', ''),
+        git_commit=provenance.get('git_commit', ''),
+        nodes=cfg.nodes,
+        mpi_ranks=cfg.mpi_ranks,
+        omp_threads=cfg.threads,
+        job_id=job_id or '',
+        hpcg_runtime_s=p.get('runtime_s', '') if cfg.benchmark == 'hpcg' else '',
         raw_output=raw_output,
     )
     for k in ("N", "NB", "P", "Q", "pfact", "rfact", "bcast", "depth", "nx", "ny", "nz"):
@@ -305,6 +328,12 @@ def record_run(run_dir, job_id, log, sacct_text=None, min_window_s=0, manual=(No
     job; `sacct_text` from fetch_sacct) > manual (energy_j, window_s).
     """
     from .config import Config  # local import: config does not depend on results
+    provenance_path = run_dir / 'provenance.json'
+    provenance = (
+        json.loads(provenance_path.read_text())
+        if provenance_path.exists()
+        else {}
+    )
     run_dir = Path(os.path.abspath(run_dir))
     cfg = Config(**json.loads((run_dir / "config.json").read_text()))
     raw = run_dir / f"slurm-{job_id}.out"
@@ -320,7 +349,15 @@ def record_run(run_dir, job_id, log, sacct_text=None, min_window_s=0, manual=(No
     elif sacct and sacct["energy_status"] == "ok" and "energy_j" in energy:
         print(f"cross-check: counters {energy['energy_j']:.0f} J over benchmark window, "
               f"sacct {sacct['energy_j']:.0f} J over whole job")
-    row = make_row(cfg, run_dir.name, parsed, str(job_id), energy, str(raw))
+    row = make_row(
+        cfg,
+        run_dir.name,
+        parsed,
+        str(job_id),
+        energy,
+        str(raw),
+        provenance,
+    )
     elapsed = parse_sacct_elapsed(sacct_text, job_id) if sacct_text else elapsed_s
     row["elapsed_s"] = elapsed if elapsed is not None else ""     # compute cost of this evaluation
     append_row(log, row)
