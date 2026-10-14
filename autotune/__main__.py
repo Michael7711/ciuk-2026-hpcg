@@ -7,13 +7,11 @@ import sys
 from pathlib import Path
 
 from .candidates import generate, pq_pairs, sample
-from .config import HPL_DEFAULTS, Config, apply_overrides, load_settings, validate
+from .config import HPL_DEFAULTS, KINDS, Config, apply_overrides, load_settings, validate
 from .jobs import prepare_run
 from .loop import load_config_list, node_hours_used, run_loop, unseen
 from .model import suggest
 from .results import check_binding, check_binding_report, check_threads, fetch_sacct, load_rows, record_run
-
-KIND_CHOICES = ['diagnostic', 'validation', 'final']
 
 def cmd_candidates(a, settings, hw):
     cands = generate(a.benchmark, hw, a.nodes, settings[a.benchmark], a.kind)
@@ -109,7 +107,7 @@ def main():
         s = sub.add_parser(name)
         s.add_argument("benchmark", choices=["hpl", "hpcg"])
         s.add_argument("--nodes", type=int, default=1)
-        s.add_argument("--kind", choices=KIND_CHOICES, default="diagnostic")
+        s.add_argument("--kind", choices=KINDS, default="diagnostic")
         s.add_argument("-n", type=int, default=5, help="how many random candidates")
         s.add_argument("--seed", type=int, default=0)
         if name == "prepare":
@@ -124,7 +122,7 @@ def main():
     s.add_argument("--NB", type=int, required=True)
     s.add_argument("--P", type=int)
     s.add_argument("--Q", type=int)
-    s.add_argument("--kind", choices=KIND_CHOICES, default="diagnostic")
+    s.add_argument("--kind", choices=KINDS, default="diagnostic")
     s.add_argument("--runs-dir", help="default: [paths] runs_dir in settings")
     s.set_defaults(fn=cmd_manual_hpl)
 
@@ -135,7 +133,7 @@ def main():
     s = sub.add_parser("suggest", help="model-guided choice of the next runs")
     s.add_argument("benchmark", choices=["hpl", "hpcg"])
     s.add_argument("--nodes", type=int, default=1)
-    s.add_argument("--kind", choices=KIND_CHOICES, default="diagnostic")
+    s.add_argument("--kind", choices=KINDS, default="diagnostic")
     s.add_argument("-n", type=int, default=4, help="batch size")
     s.add_argument("--log", help="default: [paths] log in settings")
     s.add_argument("--runs-dir", help="default: [paths] runs_dir in settings")
@@ -153,7 +151,7 @@ def main():
     s.add_argument("--max-new", type=int, required=True, help="new evaluations to run in this call")
     s.add_argument("--batch", type=int, default=1, help="configs chosen per round (kriging believer for gp)")
     s.add_argument("--nodes", type=int, default=1)
-    s.add_argument("--kind", choices=KIND_CHOICES, default="diagnostic")
+    s.add_argument("--kind", choices=KINDS, default="diagnostic")
     s.add_argument("--beta", type=float, default=1.0, help="GP exploration weight")
     s.add_argument("--min-rows", type=int, default=6, help="below this many usable rows: random design")
     s.add_argument("--seed", type=int, default=0)

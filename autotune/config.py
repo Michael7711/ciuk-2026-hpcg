@@ -3,7 +3,7 @@ import tomllib
 from dataclasses import dataclass, field
 
 BENCHMARKS = ("hpl", "hpcg")
-KINDS = ("diagnostic", "final")
+KINDS = ('diagnostic', 'validation', 'final')
 HPCG_FINAL_MIN_RUNTIME_S = 1800
 
 # HPL.dat knobs that are tunable but have a fixed default if not given.
