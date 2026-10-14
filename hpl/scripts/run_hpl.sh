@@ -3,7 +3,7 @@
 #SBATCH --account=tc079-abszero
 #SBATCH --partition=standard
 #SBATCH --qos=short
-#SBATCH --time=00:05:00
+#SBATCH --time=00:10:00
 
 set -e
 set -u

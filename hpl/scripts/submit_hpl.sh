@@ -44,7 +44,7 @@ JOB_ID=$(sbatch \
     --ntasks="$MPI_RANKS" \
     --cpus-per-task="$OMP_THREADS" \
     --exclusive \
-    --time=00:05:00 \
+    --time=00:10:00 \
     --job-name="hpl_${PURPOSE}" \
     --output="$HPL_ROOT/results/slurm/hpl_${PURPOSE}_%j.out" \
     --error="$HPL_ROOT/results/slurm/hpl_${PURPOSE}_%j.err" \
