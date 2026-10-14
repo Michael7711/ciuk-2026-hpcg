@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 COLUMNS = [
-    'run_id', 'kind', 'benchmark',
+    'run_id', 'kind', 'benchmark', 'replicate',
     'build_id', 'binary_path', 'binary_sha256', 'git_commit',
     'nodes', 'mpi_ranks', 'omp_threads',
     'N', 'NB', 'P', 'Q', 'pfact', 'rfact', 'bcast', 'depth',
@@ -258,6 +258,7 @@ def make_row(
         run_id=run_id,
         kind=cfg.kind,
         benchmark=cfg.benchmark,
+        replicate=provenance.get('replicate', ''),
         build_id=provenance.get('build_id', ''),
         binary_path=provenance.get('binary_path', ''),
         binary_sha256=provenance.get('binary_sha256', ''),

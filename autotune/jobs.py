@@ -148,16 +148,17 @@ def git_commit():
     return result.stdout.strip() if result.returncode == 0 else 'unknown'
 
 
-def collect_provenance(cfg, settings):
+def collect_provenance(cfg, settings, replicate=None):
     """Complete reproducibility metadata saved alongside a prepared run."""
     return {
         **build_identity(settings, cfg.benchmark),
         'git_commit': git_commit(),
+        'replicate': replicate,
     }
 
 
-def run_id(cfg, settings):
-    """Deterministic ID: same config + same executable build -> same ID."""
+def run_id(cfg, settings, replicate=None):
+    """Deterministic configuration/build ID, optionally suffixed for a repeat."""
     build = build_identity(settings, cfg.benchmark)
 
     identity = {
@@ -170,11 +171,17 @@ def run_id(cfg, settings):
         json.dumps(identity, sort_keys=True).encode()
     ).hexdigest()[:8]
 
-    return (
+    name = (
         f'{cfg.benchmark}-{cfg.kind}-n{cfg.nodes}-'
         f'{cfg.ranks_per_node}x{cfg.threads}-{digest}'
     )
 
+    if replicate is not None:
+        if replicate < 1:
+            raise ValueError('replicate must be >= 1')
+        name += f'-r{replicate}'
+
+    return name
 
 def walltime_s(cfg, settings):
     if cfg.benchmark == "hpcg":
@@ -248,10 +255,10 @@ def render_job_script(cfg, settings, hw, run_dir, run_name):
     return "\n".join(lines)
 
 
-def prepare_run(cfg, settings, hw, runs_dir):
+def prepare_run(cfg, settings, hw, runs_dir, replicate=None):
     """Write config, provenance, benchmark input, wrapper and job script. Does NOT submit."""
-    provenance = collect_provenance(cfg, settings)
-    name = run_id(cfg, settings)
+    provenance = collect_provenance(cfg, settings, replicate)
+    name = run_id(cfg, settings, replicate)
 
     run_dir = Path(os.path.abspath(runs_dir)) / name
     prefix = settings.get('paths', {}).get('required_prefix', '')

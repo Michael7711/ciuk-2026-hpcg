@@ -48,7 +48,10 @@ def cmd_manual_hpl(a, settings, hw):
     )
     if errors := validate(cfg, hw):
         sys.exit("invalid config: " + "; ".join(errors))
-    print(f"sbatch {prepare_run(cfg, settings, hw, a.runs_dir)}/job.sh")
+    print(
+        f"sbatch "
+        f"{prepare_run(cfg, settings, hw, a.runs_dir, replicate=a.replicate)}/job.sh"
+    )
 
 
 def cmd_threads(a, settings, hw):
@@ -136,6 +139,11 @@ def main():
     s.add_argument("--P", type=int)
     s.add_argument("--Q", type=int)
     s.add_argument("--kind", choices=KINDS, default="diagnostic")
+    s.add_argument(
+        '--replicate',
+        type=int,
+        help='repeat number for an otherwise identical evaluation (1, 2, 3, ...)',
+    )
     s.add_argument("--runs-dir", help="default: [paths] runs_dir in settings")
     s.set_defaults(fn=cmd_manual_hpl)
 
