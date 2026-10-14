@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from .candidates import generate, pq_pairs, sample
-from .config import Config, apply_overrides, load_settings, validate
+from .config import HPL_DEFAULTS, Config, apply_overrides, load_settings, validate
 from .jobs import prepare_run
 from .loop import load_config_list, node_hours_used, run_loop, unseen
 from .model import suggest
@@ -32,8 +32,21 @@ def cmd_manual_hpl(a, settings, hw):
     """Prepare one hand-chosen HPL run (baselines, smoke tests). No P/Q given -> squarest grid."""
     ranks = a.nodes * a.ranks_per_node
     p, q = (a.P, a.Q) if a.P and a.Q else pq_pairs(ranks, 10**9)[-1]
-    cfg = Config("hpl", a.nodes, a.ranks_per_node, a.threads,
-                 {"N": a.N, "NB": a.NB, "P": p, "Q": q}, a.kind)
+    params = {
+        **HPL_DEFAULTS,
+        'N': a.N,
+        'NB': a.NB,
+        'P': p,
+        'Q': q,
+    }
+    cfg = Config(
+        'hpl',
+        a.nodes,
+        a.ranks_per_node,
+        a.threads,
+        params,
+        a.kind,
+    )
     if errors := validate(cfg, hw):
         sys.exit("invalid config: " + "; ".join(errors))
     print(f"sbatch {prepare_run(cfg, settings, hw, a.runs_dir)}/job.sh")
