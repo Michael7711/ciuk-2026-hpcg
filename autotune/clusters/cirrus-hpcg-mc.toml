@@ -1,0 +1,50 @@
+[hardware]
+cores_per_node = 288
+sockets_per_node = 2
+numa_per_node = 8
+l3_per_node = 24
+mem_mib_per_node = 744768
+max_mem_fraction = 0.85
+
+[paths]
+required_prefix = '/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1'
+runs_dir = '/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/autotune_runs'
+log = '/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/hpcg_autotune.csv'
+
+[slurm]
+shell = '/bin/bash --login'
+account = 'tc079-abszero'
+partition = 'standard'
+qos = 'short'
+final_qos = 'standard'
+
+walltime_s = 600
+max_walltime_s = 900
+final_max_walltime_s = 3600
+
+inline = false
+thread_sample_after_s = 20
+
+modules = [
+    'PrgEnv-cray/8.6.0',
+    'cce/19.0.0',
+    'cray-mpich/8.1.32',
+    'cray-libsci/25.03.0',
+]
+
+[hpcg]
+binary = '/epccfs/tc079/tc079/shared/hpcg/build/bin/xhpcg'
+build_id = 'mc-hpcg31-cce19-reference-omp'
+
+threads = [1]
+local_dims = [[16, 16, 16]]
+runtime_s = [60]
+
+[model]
+noise_sd = 0.02
+
+[energy]
+sacct_min_window_s = 0
+
+[safety]
+allow_submit = false
