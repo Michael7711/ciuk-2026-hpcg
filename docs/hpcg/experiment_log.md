@@ -334,11 +334,52 @@ The ledger retained five CCE-reference reservations at 48 core-hours and four ot
 
 Slurm recorded **2337351 J** summed over the nine whole jobs. This is a whole-job accounting total, not the energy consumed solely during the reported benchmark windows. It includes work outside the timed solve, and can include compilation for alternative builds. Compiler/setup overhead and allocation duration therefore affect this total independently of benchmark GFLOP/s.
 
-All nine result records have benchmark-window energy unavailable and no benchmark GFLOP/s/W. The campaign optimised performance, not energy efficiency. Neither the 144×1 result nor its reduced configured active-core count proves lower benchmark energy or better GFLOP/s/W. That needs a verified measurement window, repeated comparisons and, for later scaling, coverage of every node.
+All nine original result records retain benchmark-window energy as unavailable and no benchmark GFLOP/s/W. The campaign optimised performance. The recovered accounting below adds a separate, retrospective Slurm-step estimate; it does not alter those historical result records or make an energy objective available to the controller.
 
-## Current Work: Confirm the Candidate Result
+### Recovered Slurm-step energy analysis — 15 October 2026
 
-The next measurement task is to repeat the 144×1 CCE reference candidate and interleave it with the 288×1 baseline under matched problem-size and timing conditions. The apparent 0.31% gain remains unconfirmed. No additional campaign is described as running here.
+Source: [`analysis/hpcg/overnight-20261015-sacct-energy.psv`](../../analysis/hpcg/overnight-20261015-sacct-energy.psv), SHA-256 `c4cc65eb50e0dcf0ff19049c4c182df856be71822e4a68bebd1be915bbe89466`. Its 36 unique allocation/step records match all nine job IDs in the diagnostic table above. All records are `COMPLETED`; each `.0` is named `bench_wrapper.sh`. The jobs used one exclusive node each. A read-only accounting check on 558657 also confirmed one allocated node and 288 allocated CPUs for its `.0` step. No historical campaign files were changed.
+
+| Job | Build / MPI ranks × threads | GFLOP/s | Whole-job energy (J) | `.0` energy (J) | `.0` elapsed (s) | Step-average power (W) | Estimated GFLOP/s/W |
+|---|---|---:|---:|---:|---:|---:|---:|
+| 558650 | CCE reference / 288×1 | 134.942 | 273140 | 270439 | 257 | 1052.292 | 0.1282 |
+| 558651 | CCE strict / 288×1 | 132.918 | 274050 | 269594 | 261 | 1032.927 | 0.1287 |
+| 558653 | GCC 14 / 288×1 | 134.293 | 269130 | 266029 | 256 | 1039.176 | 0.1292 |
+| 558654 | AOCC 5 / 288×1 | 133.793 | 269963 | 266458 | 258 | 1032.783 | 0.1295 |
+| 558656 | CCE reference, repeat / 288×1 | 134.894 | 271615 | 268882 | 256 | 1050.320 | 0.1284 |
+| 558657 | CCE reference / 144×1 | 135.342 | 231331 | 228809 | 247 | 926.352 | 0.1461 |
+| 558658 | CCE reference / 144×2 | 134.188 | 264250 | 261950 | 249 | 1052.008 | 0.1276 |
+| 558659 | CCE reference / 72×1 | 131.806 | 216374 | 214062 | 255 | 839.459 | 0.1570 |
+| 558660 | GCC 14, repeat / 288×1 | 133.809 | 267498 | 264883 | 258 | 1026.678 | 0.1303 |
+
+For each job, `step_average_power_w = .0 ConsumedEnergyRaw / .0 ElapsedRaw`, in joules per second. The final column is `HPCG GFLOP/s / step_average_power_w`. For example, 558657 gives `228809 / 247 = 926.352 W`, then `135.342 / 926.352 = 0.146102 estimated GFLOP/s/W`. Whole-job energy is displayed independently. **Never add `.batch`, `.extern`, `.0` and allocation energy:** their accounting intervals overlap. The sum of the allocation rows alone remains the historical **2337351 J** total.
+
+The `.0` interval includes HPCG initialisation, setup and validation as well as the timed benchmark. These steps lasted 247–261 s, while reported benchmark times were 132.209–136.346 s. Dividing step energy by the shorter reported benchmark runtime would produce a misleading power value. Using step-average power with the HPCG rating is an explicitly labelled estimate; it does not establish timed benchmark-window efficiency. Sensor scope, sampling cadence and boundary effects also matter. A read-only Cirrus configuration check found `acct_gather_energy/pm_counters` and `JobAcctGatherFrequency=task=30,energy=30,filesystem=30,network=30`; that is an accounting interval, not a verified sensor accuracy or update rate.
+
+The performance/energy-estimate trade-off is visible within CCE reference:
+
+- **144×1 (558657)** had the highest individual performance, **135.342 GFLOP/s**, with **926.352 W** step-average power and **0.1461 estimated GFLOP/s/W**.
+- **72×1 (558659)** had the highest efficiency estimate, **0.1570 GFLOP/s/W**, at **131.806 GFLOP/s** and **839.459 W**. Relative to 144×1, it was approximately **2.61% slower**, used **9.38% less average step power**, and had a **7.47% higher efficiency estimate**.
+- Against the individual **288×1 baseline 558650**, 72×1 was approximately **2.32% slower**, with **20.23% less average step power** and a **22.44% higher efficiency estimate**. The 144×2 run had no observed performance or energy-estimate advantage over 144×1 in these samples.
+
+These are diagnostic observations, with just one measurement for each reduced-rank layout, slightly different equation counts and potentially different nodes/system conditions. The apparent 0.31% performance gain over the repeated 288×1 mean remains unconfirmed. The compiler anchors have similar power estimates but too few repeats for an energy ranking. The observations support testing both speed and energy trade-offs, not a proven optimum or a causal claim about idle cores.
+
+Reproduce the join, validation and calculations from the repository with Python 3.11+:
+
+```sh
+python3 analysis/hpcg/overnight_energy.py
+```
+
+The analysis rejects missing or duplicate job IDs, unmatched job sets and unusable measurements. `--output NEW.csv` writes a new derived file and refuses to overwrite one. The raw PSV and historical benchmark table remain the inputs. The companion [analysis notebook](../../analysis/hpcg/overnight-energy.ipynb) contains the executed standard-library calculations and the nine-job table; its Jupyter frontend execution remains unverified.
+
+
+## Current Work: Prepare Official-Duration Weak Scaling
+
+The recovered energy analysis is complete. A **submission-disabled proposal** now defines one CCE reference 144×1 run per node at **1 → 2 → 4 nodes**, with a fixed **128×128×136 local grid**, **320864256 equations per node** and **1860 requested benchmark seconds**. The controller must verify at least **1800 reported seconds**, all numerical checks and at least one-quarter of physical memory per node before progressing. At the measured one-node data footprint, 229.477 GB/node exceeds the 206.158 GB/node threshold; longer multi-node reports must confirm it.
+
+The proposal reserves **44 minutes per job**, including 600 s of setup allowance and 180 s for accounting/controller work. Worst-case reservations are **211.2 + 422.4 + 844.8 = 1478.4 core-hours**. The proposed cap is **1500**, against the user-reported **3721.9** shared SAFE balance, leaving **2221.9 core-hours** outside this HPCG allowance. This is a proposed team allocation, not a live SAFE guarantee. The [controller guide](autotuning-controller.md#proposed-official-duration-sequence--not-launched) contains the disabled configuration, exact checks and future launch commands.
+
+144×1 is a provisional performance candidate. 72×1 remains a plausible energy-oriented alternative, using local 152×168×176 and 323592192 equations per node. Its single diagnostic estimate does not justify automatically spending a second full scaling sequence. Repeating both reduced-rank candidates against 288×1 remains planned; the small 0.31% performance difference is unconfirmed. **No new campaign has been submitted and no official-duration result is claimed.**
 
 ## Planned Experiments and Competition Results
 
@@ -352,4 +393,4 @@ The next measurement task is to repeat the 144×1 CCE reference candidate and in
 
 ### Energy interpretation
 
-The energy values above, including the overnight total, are Slurm **whole-job** readings. They can include compilation, module loading, setup, teardown and controller work, as well as the timed benchmark. They are not necessarily equal to benchmark-window energy and are not converted into HPCG GFLOP/s/W here. The campaign results currently record benchmark-window energy as unavailable. A future energy comparison must state the measurement scope and account for every participating node.
+Historical whole-job readings remain labelled as whole-job measurements. The recovered table separately labels `.0` wrapper-step energy, average power and **estimated** GFLOP/s/W. Neither scope is the timed benchmark window, and the original campaign results still record that window as unavailable. Multi-node comparisons must cover every participating node and use total job GFLOP/s divided by total step-average power, without multiplying an already aggregated Slurm energy reading by the node count.

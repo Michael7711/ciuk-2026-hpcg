@@ -27,6 +27,7 @@ from .config import Config, Hardware, load_settings, validate
 from .candidates import rank_layouts
 from .jobs import binary_sha256, prepare_run, render_job_script, walltime_s
 from .results import make_row, parse_hpcg, read_pm_counters
+from .accounting import parse_accounting, step_estimate
 
 UTC = dt.timezone.utc
 TERMINAL = {'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
@@ -102,6 +103,8 @@ def grid(points_per_rank):
 
 def space(settings, hw):
     c = settings['campaign']
+    if c.get('mode', 'adaptive') == 'sequence':
+        return sequence_space(settings, hw)
     out = []
     for b in settings['builds']:
         if not b.get('enabled', True):
@@ -132,6 +135,55 @@ def space(settings, hw):
     return out
 
 
+def sequence_space(settings, hw):
+    """One predeclared weak-scaling configuration; never search or repeat a node count."""
+    c, q = settings['campaign'], settings['sequence']
+    if (c['nodes'] != [1, 2, 4] or c['scaling'] != 'weak' or c['kind'] != 'final'
+            or c['repeats'] != 1 or c['max_trials'] != 3):
+        raise ValueError('sequence requires nodes=[1,2,4], weak scaling, final, repeats=1, max_trials=3')
+    enabled_builds = [b['id'] for b in settings['builds'] if b.get('enabled', True)]
+    if enabled_builds != [q['build']]:
+        raise ValueError('sequence requires exactly its one selected build')
+    if (len(q['local_grid']) != 3 or any(type(v) is not int for v in q['local_grid'])
+            or type(q['ranks_per_node']) is not int or type(q['threads']) is not int):
+        raise ValueError('sequence grid, ranks and threads must be integers')
+    per_node = math.prod(q['local_grid']) * q['ranks_per_node']
+    if per_node != c['points_per_node']:
+        raise ValueError('sequence points_per_node must exactly match the fixed local grid and ranks')
+    mem = per_node * c['memory_bytes_per_point'] * c['memory_headroom']
+    if mem > hw.mem_bytes * hw.max_mem_fraction:
+        raise ValueError('sequence exceeds memory ceiling')
+    out = []
+    for n in c['nodes']:
+        cfg = Config('hpcg', n, q['ranks_per_node'], q['threads'],
+                     dict(zip(('nx', 'ny', 'nz'), q['local_grid']), runtime_s=c['runtime_s']), 'final')
+        errors = validate(cfg, hw)
+        if errors:
+            raise ValueError('; '.join(errors))
+        item = {'build': q['build'], 'config': asdict(cfg), 'points': per_node*n,
+                'estimated_peak_bytes_per_node': mem}
+        item['key'] = digest(item)
+        out.append(item)
+    return out
+
+
+def sequence_remaining(state):
+    """The ledger must be a successful prefix. Failure/abandonment cannot skip a scale."""
+    items, trials = state['candidates'], state['trials']
+    if len(trials) > len(items):
+        raise RuntimeError('sequence ledger has extra trials')
+    for item, trial in zip(items, trials):
+        if (trial['item'] != item or trial['status'] != 'done'
+                or not trial.get('result', {}).get('usable')
+                or not trial['result'].get('official_eligible')):
+            raise RuntimeError('sequence blocked: prior scale incomplete/invalid; no skip or automatic retry')
+    return items[len(trials):]
+
+
+def sequence_reservation(items, settings, hw):
+    return math.fsum(trial_seconds(i, settings)*hw.cores_per_node*i['config']['nodes']/3600 for i in items)
+
+
 def check_settings(s, hw):
     c = s['campaign']
     positive = ['physical_memory_bytes_per_node', 'cap_core_hours', 'max_trials', 'repeats',
@@ -141,8 +193,13 @@ def check_settings(s, hw):
     for k in positive:
         if not math.isfinite(c[k]) or c[k] <= 0:
             raise ValueError(f'campaign.{k} must be positive and finite')
-    if c['cap_core_hours'] > 500 or c['cap_core_hours'] > c['team_safe_balance_estimate_core_hours']:
-        raise ValueError('campaign cap must be <=500 and <= the advisory SAFE estimate (not a live balance)')
+    mode = c.get('mode', 'adaptive')
+    if mode not in ('adaptive', 'sequence'):
+        raise ValueError('unknown campaign mode')
+    if c['cap_core_hours'] > c['team_safe_balance_estimate_core_hours']:
+        raise ValueError('campaign cap exceeds the advisory SAFE estimate (not a live balance)')
+    if mode == 'adaptive' and c['cap_core_hours'] > 500:
+        raise ValueError('initial adaptive campaign cap must be <=500 core-hours')
     for k in ('max_trials','repeats','points_per_node','runtime_s',
               'pending_timeout_s','build_timeout_s','control_margin_s','repeat_every','min_ranks_per_node'):
         if type(c[k]) is not int:
@@ -194,8 +251,16 @@ def check_settings(s, hw):
         raise ValueError('source and state_prefix must be absolute shared paths')
     if hw.cores_per_node != 288:
         raise ValueError('Cirrus campaign expects 288 physical cores per exclusive node')
-    for item in space(s, hw):
+    items = space(s, hw)
+    for item in items:
         trial_seconds(item, s)  # validate QoS limits before any submission
+    if mode == 'sequence':
+        if c.get('archive_slurm_energy') is not True:
+            raise ValueError('sequence requires archive_slurm_energy=true')
+        if sequence_reservation(items, s, hw) > c['cap_core_hours']:
+            raise ValueError('entire scaling sequence must fit campaign reservation cap')
+        if time.time() + sum(trial_seconds(i, s)+30 for i in items) > epoch(c['deadline']):
+            raise ValueError('deadline cannot fit the entire scaling sequence even without queue waits')
 
 
 def trial_seconds(item, settings):
@@ -237,6 +302,13 @@ def select(state, settings, hw, affordable=None):
     periodically repeat close contenders. A one-point screen is provisional.
     """
     performance_only(settings)
+    if settings['campaign'].get('mode') == 'sequence':
+        remaining = sequence_remaining(state)
+        if not remaining:
+            return None, 'predefined 1/2/4-node sequence complete'
+        if affordable is not None and sequence_reservation(remaining, settings, hw) > affordable:
+            return None, 'remaining complete scaling sequence exceeds reservation allowance'
+        return remaining[0], 'predefined weak-scaling sequence; cover 1 then 2 then 4 nodes; no adaptive repeats'
     c=settings['campaign']
     trials=state['trials']
     counts={i['key']:sum(t['item']['key']==i['key'] for t in trials) for i in state['candidates']}
@@ -515,6 +587,10 @@ def tick(root, submit=False):
         cost=seconds*hw.cores_per_node*item['config']['nodes']/3600
         now=time.time()
         deadline=min(epoch(c['deadline']),now+c['pending_timeout_s']+seconds)
+        if c.get('mode') == 'sequence':
+            remaining = sequence_remaining(state)
+            if now + sum(trial_seconds(i, settings)+30 for i in remaining) > epoch(c['deadline']):
+                return {'stopped':'deadline cannot fit all remaining scaling jobs even without queue waits'}
         if now+seconds+30>deadline:
             return {'stopped':'deadline cannot fit complete next trial'}
         out={'candidate':item,'reason':why,'reserved_core_hours':used,
@@ -691,6 +767,10 @@ def worker(root,token):
         result.update(gflops_per_w=row.get('gflops_per_w') or None,
                       energy_scope='benchmark_process' if energy.get('energy_status')=='ok' else 'unavailable',
                       binary_sha256=manifest['sha256'],row=row)
+        if settings['campaign'].get('archive_slurm_energy', False):
+            # Single bounded query. Missing/delayed energy does not invalidate a valid HPCG run.
+            result['slurm_accounting'] = archive_accounting(root, state, settings,
+                current={'job_id':jid, 'result':result, 'item':item})
         atomic(run_dir/'result.json',result)
         with locked(root):
             state=load(root)
@@ -713,6 +793,49 @@ def worker(root,token):
     if not stopped(root):
         # This job is marked done in our ledger but remains charged at its full reservation.
         print(json.dumps(tick(root,submit=True),indent=2))
+
+
+def archive_accounting(root, state, settings, current=None):
+    """Append-only snapshots, including every step. Never modify raw HPCG/result files.
+
+    A running parent's allocation totals are provisional. Recollect after completion
+    to retain final allocation energy; workers also recollect their predecessors.
+    """
+    trials = [t for t in state['trials'] if t.get('job_id')]
+    if current:
+        trials = [t for t in trials if t['job_id'] != current['job_id']] + [current]
+    if not trials:
+        return {'status':'no jobs to archive'}
+    ids = sorted({str(t['job_id']) for t in trials}, key=int)
+    if any(not jid.isdigit() for jid in ids):
+        raise ValueError('invalid accounting job id')
+    folder = root/'accounting'
+    folder.mkdir(exist_ok=True)
+    name = dt.datetime.now(UTC).strftime('%Y%m%dT%H%M%S.%fZ')+'-'+uuid.uuid4().hex[:8]
+    receipt = {'captured_at':stamp(), 'job_ids':ids, 'benchmark_window_energy_verified':False}
+    try:
+        since = dt.datetime.fromtimestamp(epoch(settings['campaign']['budget_since'])).strftime('%Y-%m-%dT%H:%M:%S')
+        raw = command(['sacct', '-P', '-j', ','.join(ids), '-S', since,
+            '-u', os.environ['USER'], '-A', settings['slurm']['account'],
+            '--format=JobID%40,JobName%100,State,ElapsedRaw,ConsumedEnergyRaw,AllocNodes,AllocCPUS,ExitCode,NodeList%500,Start,End'])
+    except (subprocess.SubprocessError, OSError) as e:
+        receipt.update(status='unavailable', error=str(e))
+    else:
+        raw_path = folder/(name+'.psv')
+        with raw_path.open('x') as f:
+            f.write(raw)
+        receipt['raw_file'] = str(raw_path)
+        try:
+            records = parse_accounting(raw)
+            receipt.update(status='captured', estimates={t['job_id']:step_estimate(
+                records, t['job_id'], (t.get('result', {}).get('gflops') if t.get('result', {}).get('usable') else None),
+                t.get('result', {}).get('runtime_s'), t['item']['config']['nodes']) for t in trials})
+        except ValueError as e:
+            receipt.update(status='unusable', error=str(e))
+    path = folder/(name+'.json')
+    with path.open('x') as f:
+        json.dump(receipt, f, indent=2, allow_nan=False)
+    return {**receipt, 'receipt_file':str(path)}
 
 
 def init(settings_path,root):
@@ -829,7 +952,7 @@ def main(argv=None):
     a.add_argument('--output',type=Path,required=True)
     a.add_argument('--purpose',choices=['chain','build'],default='chain')
     a.add_argument('--build',help='one recipe id; required for --purpose build')
-    for name in ('tick','status','stop','worker','resume','abandon'):
+    for name in ('tick','status','stop','worker','resume','abandon','archive-accounting'):
         a=sub.add_parser(name)
         a.add_argument('--state',type=Path,required=True)
         if name=='resume':
@@ -849,9 +972,15 @@ def main(argv=None):
         s,hw=load_settings(a.settings)
         check_settings(s,hw)
         result={'candidates':space(s,hw),'cap_core_hours':s['campaign']['cap_core_hours'],
+                'sequence_reservation_core_hours':(sequence_reservation(space(s,hw),s,hw)
+                    if s['campaign'].get('mode')=='sequence' else None),
                 'note':'dry run: no Slurm calls, writes, builds or submissions'}
     elif a.cmd=='init':
         result=init(a.settings,root)
+    elif a.cmd=='archive-accounting':
+        state=load(root)
+        s,_=settings_for(state)
+        result=archive_accounting(root,state,s)
     elif a.cmd=='worker':
         worker(root,a.token)
         return

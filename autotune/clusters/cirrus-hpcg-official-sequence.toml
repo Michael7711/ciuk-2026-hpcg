@@ -1,0 +1,74 @@
+# Proposed official-duration weak-scaling sequence. NOT launched or benchmark-verified.
+# Submission stays disabled; review the shared allowance and deadline before init.
+[hardware]
+cores_per_node = 288
+sockets_per_node = 2
+numa_per_node = 8
+l3_per_node = 24
+mem_mib_per_node = 744768
+max_mem_fraction = 0.80
+
+[slurm]
+shell = '/bin/bash --login'
+account = 'tc079-abszero'
+partition = 'standard'
+qos = 'short'
+final_qos = 'standard'
+hpcg_overhead_s = 600
+max_walltime_s = 1200
+final_max_walltime_s = 3600
+modules = []
+
+[safety]
+allow_submit = false
+
+[campaign]
+mode = 'sequence'
+archive_slurm_energy = true
+source = '/epccfs/tc079/tc079/shared/hpcg'
+state_prefix = '/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1'
+# Set these to the actual campaign baseline and closing time before init.
+# Explicit timezone required. Future deadline is a template, not the challenge deadline.
+budget_since = '2026-10-15T00:00:00+00:00'
+deadline = '2026-10-16T18:00:00+00:00'
+cap_core_hours = 1500.0
+# Advisory user-provided SAFE estimate, NOT a live/team-wide balance check.
+team_safe_balance_estimate_core_hours = 3721.9
+max_trials = 3
+pending_timeout_s = 7200
+build_timeout_s = 180
+control_margin_s = 180
+# Ordered coverage, exactly once each; failures stop rather than skip a node count.
+nodes = [1,2,4]
+scaling = 'weak'
+# 144 * 128 * 128 * 136; diagnostic data memory was 229.477 GB per node.
+points_per_node = 320864256
+volume_tolerance = 0.025
+threads = [1]
+fill = [0.5]
+min_ranks_per_node = 24
+runtime_s = 1860
+kind = 'final'
+repeats = 1
+repeat_every = 4
+noise_tolerance = 0.02
+objective = 'performance'
+# Data memory ~715 B/equation in the measured reference. Use a safe peak bound.
+memory_bytes_per_point = 900
+memory_headroom = 1.25
+# Nominal 768 GiB; official eligibility uses physical memory, not Slurm RealMemory.
+physical_memory_bytes_per_node = 824633720832
+
+[[builds]]
+id = 'cce19-reference'
+binary = '/epccfs/tc079/tc079/shared/hpcg/build/bin/xhpcg'
+sha256 = '1ecfef30466d29e1a5f830d4f9bb7a0f431b1d3d77b14c953ee3a460899321de'
+modules = ['PrgEnv-cray/8.6.0','cce/19.0.0','cray-mpich/8.1.32']
+flags = ['-O3','-ffast-math','-fopenmp']
+
+
+[sequence]
+build = 'cce19-reference'
+ranks_per_node = 144
+threads = 1
+local_grid = [128,128,136]

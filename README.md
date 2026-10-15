@@ -25,11 +25,13 @@ The compiler screen used matching 288×1, 104³-local-grid conditions. CCE refer
 
 Actual Slurm allocation usage was **190.16 core-hours**; the controller retained **489.6 core-hours of worst-case reservations**. These are different quantities. The remaining 10.4 hours of reservation headroom could not fit another trial, so the controller stopped even though actual usage was much lower.
 
-Whole-job Slurm energy includes work outside the timed solver and is not necessarily benchmark-window energy. No benchmark GFLOP/s/W is reported from this campaign. These remain **diagnostic results**, well below the 1800-second requirement for official competition benchmarks.
+Recovered Slurm accounting now provides a separate **wrapper-step average-power estimate** for all nine diagnostics. CCE 144×1 gives **0.1461 estimated GFLOP/s/W** at 135.342 GFLOP/s; 72×1 gives **0.1570** at 131.806 GFLOP/s; baseline job 558650 gives **0.1282**. These are not timed benchmark-window efficiencies. Whole-job and step intervals overlap and their energy readings must not be added. The [experiment log](docs/hpcg/experiment_log.md#recovered-slurm-step-energy-analysis--15-october-2026) records every raw value, calculation and limitation. The runs remain **diagnostic**, below 1800 reported seconds.
 
-## Current work: confirm the candidate result
+## Current work: prepare official-duration weak scaling
 
-Repeat the 144×1 candidate and the 288×1 reference with matched workloads, and check whether the small performance difference persists. The initial overnight campaign is complete; no follow-up campaign or official result is claimed here.
+The proposed [disabled sequence configuration](autotune/clusters/cirrus-hpcg-official-sequence.toml) uses CCE reference **144 MPI ranks × 1 thread per node**, fixed local **128×128×136** grids, and **1860 requested seconds**, once each at **1, 2 and 4 nodes**. It requires at least 1800 reported seconds, numerical validation and the memory threshold before chaining to the next scale. The proposed **1500-core-hour cap** covers **1478.4 worst-case reservation hours** and leaves **2221.9** of the stated 3721.9 shared SAFE balance outside this allowance. Agree that allowance with the HPL team before launch.
+
+The sequence is prepared for review and **has not been launched**. 144×1 is a provisional speed candidate; 72×1 is a provisional energy-estimate candidate. Repeated matched measurements are still needed to confirm either advantage. See the [controller guide](docs/hpcg/autotuning-controller.md#proposed-official-duration-sequence--not-launched) for validation, accounting, launch and stop commands.
 
 ## Planned experiments
 
