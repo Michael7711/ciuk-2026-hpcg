@@ -1,6 +1,8 @@
 # HPCG campaign controller
 
-Status: 15 October 2026. The Python/Slurm controller has passed all 41 automated tests on Cirrus, completed a two-job chaining test, and compiled and validated the GNU, AOCC and CCE strict recipes. The initial overnight campaign has also completed nine VALID diagnostics. Its best single result, 135.342 GFLOP/s at CCE reference 144×1, is an unconfirmed 0.31% above the repeated 288×1 baseline; it still needs repeat measurements. No official 30-minute result is claimed. Detailed settings and measurements are in the [experiment log](experiment_log.md).
+Status: **15 October 2026**. The controller has progressed through chaining canaries, alternative compiler validation, nine VALID adaptive diagnostics and a completed unattended **1 → 2 → 4-node official-duration sequence**. The expanded **58-test suite passed on Cirrus**, as reported by the team. All three long runs passed numerical and controller eligibility checks; formal competition acceptance and timed benchmark-window energy remain unverified. Detailed results and provenance are in the [experiment log](experiment_log.md).
+
+**All further HPCG compute is paused** while the team coordinates remaining HPL requirements. The additional 72×1 official-duration experiment has **not been launched**. The team-confirmed allocation is **5000 core-hours**; the latest team-supplied shared Slurm snapshot showed **4294.48 used / 705.52 estimated remaining**. These are dated accounting figures, not a verified live SAFE balance. No command in this guide authorises additional compute during the pause.
 
 ## Cirrus environment and tested builds
 
@@ -25,11 +27,13 @@ Sources: [Cirrus hardware](https://docs.cirrus.ac.uk/user-guide/hardware/), [com
 
 ## Completed controller validation
 
-The 41 automated tests passed on Cirrus. The live chaining campaign then ran **558642 → 558643** and stopped at `max_trials`. Separate GNU (**558644**), AOCC (**558647**) and CCE strict (**558649**) campaigns compiled their executables, passed all four HPCG V&V checks and stopped at their one-trial limits. Slurm records all five jobs as `COMPLETED`.
+The initial 41 automated tests passed on Cirrus. The live chaining campaign then ran **558642 → 558643** and stopped at `max_trials`. Separate GNU (**558644**), AOCC (**558647**) and CCE strict (**558649**) campaigns compiled their executables, passed all four HPCG V&V checks and stopped at their one-trial limits. Slurm records all five jobs as `COMPLETED`.
 
-Results, selection reasons, validation status and executable provenance are retained in the corresponding campaign directories. The [completed-experiment records](experiment_log.md#experiment-5-autonomous-controller-and-job-chaining--completed) contain the measurements and paths. These canaries established the small-problem workflow before the representative overnight campaign. They do not validate every recovery path or replace longer competition runs.
+Results, selection reasons, validation status and executable provenance are retained in the corresponding campaign directories. The [completed-experiment records](experiment_log.md#experiment-5-autonomous-controller-and-job-chaining--completed) contain the measurements and paths. These canaries established the small-problem workflow before the representative overnight campaign. The subsequent fixed sequence completed jobs **565006 → 566113 → 569661**, covering 1, 2 and 4 nodes with controller-eligible official-duration reports, and stopped at `max_trials`. Worker captures and final archival recovered Slurm accounting for all three jobs. The [completed official sequence](#completed-official-duration-sequence--15-october-2026) below records its settings, measurements and resource use.
 
-Repository templates still default to `allow_submit=false`. The completed canaries and overnight campaign used their own explicitly enabled settings on Cirrus; those settings are not a blanket submission gate for other campaigns. The current controller optimises performance. It rejects efficiency and alternating objectives because a suitable benchmark-window measurement has not been verified. HPL's existing whole-job energy reporting remains available with its scope labelled explicitly.
+The expanded suite passed **58 tests on Cirrus**, according to the team's test result. Its coverage includes full-sequence admission, deadline and memory guards, failed-scale blocking, overlapping parent/successor reservations, accounting joins and the HPL whole-job efficiency regression. This documentation-only review checked the original benchmark reports, ledger, settings, chaining logs and accounting archives through read-only SSH; it did not rerun tests or find a retained Cirrus test-console log in the inspected directories. Successful canaries and full runs validate the normal path, not every live failure or recovery scenario.
+
+Repository templates still default to `allow_submit=false`. The completed canaries, overnight campaign and official-duration sequence used their own explicitly enabled settings on Cirrus; those settings are not a blanket submission gate for other campaigns. The current controller optimises performance. It rejects efficiency and alternating objectives because a suitable benchmark-window measurement has not been verified. HPL's existing whole-job energy reporting remains available with its scope labelled explicitly.
 
 ## Controller and budget semantics
 
@@ -41,7 +45,7 @@ Each worker runs one experiment inside its Slurm allocation, records it and sele
 
 The initial **adaptive campaign cap** remains configurable up to 500 core-hours. The separate, explicit `mode="sequence"` supports a reviewed larger cap for official-duration 1/2/4-node runs; it admits only a predefined final weak-scaling sequence whose entire worst-case reservation fits that cap. Merely changing an adaptive campaign to `kind="final"` does not remove its 500-hour guard. Every durable submission intent is charged for its full exclusive-node allocation, including pending, running, completed, failed, cancelled and ambiguous submissions. Reservations are never refunded. Idle cores in under-populated layouts still cost 288 cores per node. Build timeout, benchmark runtime, setup margin, controller margin and Slurm minute rounding are included. A scheduler-visible increase in a campaign allocation is included in exposure; if exposure exceeds the cap the controller stops and requests cancellation of live campaign jobs.
 
-Admission is locked across reconciliation, reservation persistence and submission. The intent is written atomically **before** `sbatch`. Simultaneous controllers using the same ledger cannot reserve the same remaining allowance twice. Ambiguous submission responses remain charged and are reconciled by unique token, never blindly retried. An automated concurrency regression verifies one submission and bounded reservation under competing calls. The completed canary chain and nine-job overnight campaign exercised the shared ledger and successor submission on Cirrus. Automated tests cover competing admissions; deliberate live lock contention and crash-recovery tests have not been performed.
+Admission is locked across reconciliation, reservation persistence and submission. The intent is written atomically **before** `sbatch`. Simultaneous controllers using the same ledger cannot reserve the same remaining allowance twice. Ambiguous submission responses remain charged and are reconciled by unique token, never blindly retried. An automated concurrency regression verifies one submission and bounded reservation under competing calls. The completed canary chain, nine-job overnight campaign and three-job official sequence exercised the shared ledger and successor submission on Cirrus. Automated tests cover competing admissions; deliberate live lock contention and crash-recovery tests have not been performed.
 
 Status separates these quantities:
 
@@ -51,7 +55,7 @@ Status separates these quantities:
 | `campaign_cap_core_hours` | Hard admission allowance for this ledger |
 | `other_submitting_user_job_exposure_core_hours` | Diagnostic exposure for other jobs visible for this user/account; unavailable without a scheduler snapshot |
 | `scheduler_scope` | Explicitly `submitting_user_and_account_only` |
-| `team_safe_balance_estimate_core_hours` | User-provided estimate (template: 4908.5), not an authoritative live balance |
+| `team_safe_balance_estimate_core_hours` | Historical user-provided estimate: 4908.5 in the initial template, 3721.9 in the official settings; neither is a current authoritative balance |
 | `team_safe_balance_verified` | Always false: no SAFE integration exists |
 
 Other jobs are not silently conflated with the campaign allowance. **The controller cannot guarantee the team's shared SAFE balance across teammates or independent ledgers.** Agree each campaign/canary allowance with the team and check SAFE before authorising execution. If canaries count towards the initial 500 hours, subtract their allocated caps from the subsequent tuning cap. Do not authorise multiple independent 500-hour ledgers against one allowance. Concurrent jobs belonging to this ledger are all charged; other users' allocations require external coordination.
@@ -92,7 +96,7 @@ The selection log shows the intended adaptive behavior in practice:
 3. The controller focused on CCE reference and tried **144×1** (558657), then used its **135.342 GFLOP/s** observation as the pivot for **144×2** (558658) and **72×1** (558659).
 4. It repeated GNU (558660) to investigate variation. The GNU anchor pair averaged 134.051 GFLOP/s, compared with 133.793 for the single AOCC anchor and 132.918 for the single CCE strict anchor.
 
-Job 558657 is a candidate improvement, not a confirmed speedup. The **0.31%** comparison uses a single 144×1 observation against a two-run baseline. The candidate also had about **0.96% fewer equations** and a different decomposition. The compiler screen likewise has too few repeats to establish a general ranking, and losing builds were not explored across all hybrid layouts. The next work is repeated, closely matched candidate-versus-baseline measurements.
+Job 558657 is a candidate improvement, not a confirmed speedup. The **0.31%** comparison uses a single 144×1 observation against a two-run baseline. The candidate also had about **0.96% fewer equations** and a different decomposition. The compiler screen likewise has too few repeats to establish a general ranking, and losing builds were not explored across all hybrid layouts. Repeated, closely matched candidate-versus-baseline measurements remain possible future work, subject to the current compute pause and team budget agreement.
 
 ### Budget and stopping evidence
 
@@ -114,7 +118,7 @@ Fresh run directories retain inputs, provenance, compiler/build manifests, Slurm
 
 A usable HPCG result needs successful process exit, one fresh summary, finite positive performance, all four passed V&V checks, matching ranks/threads/local grid, plausible runtime and safe reported data memory. Invalid or incomplete results are recorded as failed and create `STOP` before any successor submission. Failed Slurm jobs discovered during reconciliation also block the chain. There is no automatic failure retry.
 
-Final eligibility additionally checks at least 1800 **reported** benchmark seconds and at least one quarter of nominal physical memory in reported data. A 4-node 30-minute solve alone costs at least 576 core-hours. The disabled sequence proposal below supplies a separate final-scaling budget and procedure.
+Final eligibility additionally checks at least 1800 **reported** benchmark seconds and at least one quarter of nominal physical memory in reported data. A 4-node 30-minute solve alone costs at least 576 core-hours. The completed sequence below records its separate final-scaling budget, actual usage and eligibility results.
 
 HPL retains its previous whole-job efficiency calculation, explicitly labelled with `energy_status=whole_job` and `energy_source=sacct`. Low-resolution or missing readings still withhold efficiency. CSV columns and append behavior remain compatible.
 
@@ -142,13 +146,15 @@ All generated configs have `allow_submit=false`, performance objective, fresh ba
 | AOCC build | 558647; compilation succeeded, VALID | 144×2, local 16³ | 57.6 core-hours | 60 |
 | CCE strict build | 558649; compilation succeeded, VALID | 144×2, local 16³ | 57.6 core-hours | 60 |
 
-The chain reserves two minutes per job. Each build canary reserves twelve minutes including a ten-minute build timeout, 90-second benchmark overhead and 20-second controller margin. These tiny runs test mechanics and validation, not representative performance, energy or final eligibility. The completed chain and compiler tests establish this small-problem path. The later overnight campaign assessed representative problems; official-duration and multi-node operation remain to be verified.
+The chain reserves two minutes per job. Each build canary reserves twelve minutes including a ten-minute build timeout, 90-second benchmark overhead and 20-second controller margin. These tiny runs test mechanics and validation, not representative performance, energy or final eligibility. The completed chain and compiler tests establish this small-problem path. The later overnight campaign assessed representative problems, and the subsequent official-duration sequence verified normal multi-node execution and validation at 1, 2 and 4 nodes.
 
 The completed ledgers are `campaign-chain-01`, `campaign-gnu-01`, `campaign-aocc-01` and `campaign-cce-strict-01` under `/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/`. The deployed controller is under `controller-review/` in that same directory. Each run retains `result.json`, `build.json`, `provenance.json`, `compiler.txt`, loaded-module information and raw HPCG output. Build directories retain the recipe, executable and its hash. These records were checked read-only for this documentation update.
 
 Do not overwrite or reinitialise the completed campaign directories. A new campaign needs its own reviewed settings, ledger and budget allowance. Generated canary settings do not authorise any further campaign; the completed overnight run used its own campaign-specific settings. Both an explicitly enabled settings gate and `tick --submit` are required for a new launch; this documentation update does neither.
 
 ## Stop and explicit recovery
+
+These are reference procedures for separately authorised operation, not instructions to restart HPCG during the current team pause. No stop, cancellation or recovery command was run during this documentation update.
 
 For an authorised future campaign, emergency stop creates a shared sentinel and cancels only its matching jobs:
 
@@ -168,114 +174,96 @@ This records the acknowledgement, retains every reservation, excludes failed can
 
 An ambiguous `sbatch` response retains an intent and reservation. Reconcile against the scheduler first. Only after confirming absence with healthy scheduler/accounting data may a human use `abandon --state ... --token ...`; this retains cost and cannot abandon a visible live job. It is not an automatic retry mechanism.
 
-## Current work and planned final benchmarking
+## Completed official-duration sequence — 15 October 2026
 
-The single-node canaries and initial representative overnight campaign are completed. The next task is to repeat the 144×1 CCE reference candidate against the 288×1 baseline with closely matched workloads and interleaved order. The apparent 0.31% gain remains unconfirmed. Follow-up work will examine other promising compiler/layout combinations and one-to-four-node scaling; a one-node optimum is not assumed to transfer unchanged.
+The planned fixed weak-scaling sequence has now completed. The deployed checkout was **`controller-official-20261015-v1/`**, with settings **`work/official-144-20261015-v1.toml`**, under `/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/`. It used the reference executable and SHA-256 documented above, rather than compiling a new binary. The repository template `autotune/clusters/cirrus-hpcg-official-sequence.toml` remains submission-disabled; the completed campaign used its separately enabled settings. Do not edit either configuration or the completed ledger to describe the current pause.
 
-The overnight run demonstrated a clean no-fit reservation-budget stop. Deadline expiry, live pending-job edge cases, deliberate failure/crash recovery and simultaneous live admissions have not all been demonstrated by these successful runs. Automated tests cover the safeguards, but do not prove every site-specific failure mode.
-
-Final competition runs need at least 1800 reported benchmark seconds, the required memory footprint and reproducible performance/energy evidence. Benchmark-window instrumentation and multi-node energy aggregation still require verification; SAFE remains an external team check. The final results, scripts and presentation material will be assembled from qualifying measurements. No official 30-minute result or running follow-up campaign is claimed in the current records.
-
-
-## Proposed official-duration sequence — not launched
-
-`autotune/clusters/cirrus-hpcg-official-sequence.toml` is a **new disabled proposal**, separate from every completed campaign. It uses `mode="sequence"`, one prebuilt CCE reference executable with its verified SHA-256, and exactly three ordered experiments. The original adaptive template, compiler race, HPL renderer/parser/CSV workflow and historical campaigns remain separate. No submission has been enabled and no job ID exists for this proposal.
-
-| Setting | Proposed value |
+| Setting | Completed campaign value |
 |---|---|
-| Order / repeats | 1 → 2 → 4 nodes, exactly once each; `max_trials=3`, `repeats=1` |
-| Build | `cce19-reference`, existing CCE 19.0.0 binary; no compilation |
-| Per-node layout | 144 MPI ranks, 1 OpenMP thread/rank; 288 allocated cores/node, 2-core share/rank |
+| Mode / order / repeats | `sequence`; 1 → 2 → 4 nodes, exactly once each; `max_trials=3`, `repeats=1` |
+| Build | `cce19-reference`, CCE 19.0.0; `-O3 -ffast-math -fopenmp` |
+| Per-node layout | 144 MPI ranks × 1 OpenMP thread; 288 allocated physical cores/node, 2-core share/rank |
 | Total MPI ranks | 144, 288, 576 |
-| Local grid | 128×128×136 on every rank at every scale |
+| Local grid | 128×128×136 per rank at every scale |
 | Workload | 320864256 equations/node; totals 320864256, 641728512, 1283457024 |
-| Duration / kind | 1860 requested benchmark seconds; `final` |
-| Validation | >=1800 reported benchmark seconds; four V&V passes; matching rank/thread/grid counts; memory bounds |
-| Memory | Previously observed 229.477 GB/node; minimum 206.158 GB/node; conservative peak estimate 360.972 GB/node |
-| Scheduler | Exclusive standard partition, standard QoS; no requeue; same binding as tested diagnostics |
-| Time reservation | 1860 benchmark + 600 setup allowance + 180 controller/accounting = 2640 s = 44 min/job |
-| Pending timeout | 7200 s per successor; Slurm finish deadline also bounded by campaign deadline |
-| Proposed cap / shared SAFE estimate | 1500 / 3721.9 core-hours; user-provided balance, not a live check |
-| Submission | `allow_submit=false`; explicit `tick --submit` also required |
+| Requested duration / kind | 1860 benchmark seconds / `final` |
+| Required report checks | >=1800 benchmark seconds; four passed numerical checks; matching ranks/threads/grid; memory bounds |
+| Reported data memory | 229.477, 458.954, 917.907 GB total; approximately 229.477 GB/node |
+| Memory bounds | Minimum 206.158 GB/node; conservative peak estimate 360.972 GB/node; 80% schedulable-memory ceiling |
+| Scheduler | Exclusive standard partition, standard QoS; no automatic requeue |
+| Allocation time limit | 1860 benchmark + 600 setup + 180 controller/accounting = 2640 s = 44 min/job |
+| Pending timeout / finish deadline | 7200 s / 16 October 2026, 18:00 UTC (19:00 BST) |
+| Hard campaign cap / reservations | 1500 / 1478.4 core-hours |
+| Actual allocation usage | 1127.44 core-hours |
+| Accounting capture | `archive_slurm_energy=true`; append-only raw snapshots and separate estimate receipts |
 
-The file's `deadline=2026-10-16T18:00:00+00:00` is an editable template stop time (19:00 BST), **not the challenge deadline**. Review it and `budget_since` before init. Queue availability and the HPCG allowance must also be reviewed before launch. Read-only inspection confirmed the reference executable hash, standard QoS access and 744768 MiB scheduled memory per node. Generated scripts and guards have been tested locally; the new sequence itself has not run on Cirrus.
+The campaign ran **18:42:28–20:23:07 BST on 15 October 2026**. Its ledger and original HPCG summaries record:
 
-**Why 144×1:** it is the best observed diagnostic speed candidate and already has a representative numerically valid run. The 0.31% advantage over the repeated 288×1 baseline is unconfirmed. **72×1** is a credible energy-oriented alternative, with 2.61% less observed performance than 144×1 and a 7.47% higher Slurm-step efficiency estimate, but only one sample. Its alternative settings would be `sequence.ranks_per_node=72`, `sequence.local_grid=[152,168,176]`, `campaign.points_per_node=323592192`, and `campaign.fill=[0.25]`, before init; all node counts would then use that same layout. Do not switch layouts within one weak-scaling curve or launch both configurations against the one 1500-hour allowance. A full sequence for both would reserve 2956.8 core-hours, leaving only 765.1 of the stated shared balance and little room for HPL. The current proposal prioritises getting one valid scaling sequence first; matched repeats and configuration choices specific to each node count need a later reviewed allowance.
+| Nodes | Job | GFLOP/s | Reported runtime (s) | Weak-scaling efficiency | Validation |
+|---:|---:|---:|---:|---:|---|
+| 1 | 565006 | 135.094 | 1898.57 | 100% | VALID; controller eligible |
+| 2 | 566113 | 269.818 | 1857.91 | 99.86% | VALID; controller eligible |
+| 4 | 569661 | 533.317 | 1879.79 | 98.69% | VALID; controller eligible |
 
-### Budget and progression
+Efficiency is `GFLOP/s(N) / (N × 135.094) × 100`; four-node speedup is **3.95×**. All reports passed spectral convergence, symmetry, iteration-count and reproducibility tests. Each `result.json` records `usable=true` and `official_eligible=true`, with the required duration and memory footprint. **Controller eligibility is distinct from formal competition acceptance**, which has not been verified.
 
-| Nodes | Allocated cores | Allocation limit | Worst-case reservation (core-hours) |
-|---:|---:|---:|---:|
-| 1 | 288 | 44 min | 211.2 |
-| 2 | 576 | 44 min | 422.4 |
-| 4 | 1152 | 44 min | 844.8 |
-| Total | | 132 min serial allocation time | **1478.4** |
+### Coverage, chaining and budget behavior
 
-The calculation is `nodes × 288 × 2640 / 3600`; under-filled layouts still pay for every allocated core. The 1500-hour cap leaves 21.6 hours of ledger headroom and **2221.9 core-hours outside this allowance**, about 59.7% of the user-reported SAFE balance. Actual usage can be lower, but reservations are never refunded to admit more jobs. This cap does not reserve funds in SAFE or coordinate teammates/other ledgers. Check the team's current commitments and agree the allowance before enabling it. Do not promise this balance to HPL without checking their concurrent spending.
+The fixed sequence checks full-sequence cost and the finish deadline before admission. Under the same ledger lock, each next admission includes existing reservations plus **all remaining scales**. It cannot repeatedly spend on smaller node counts while neglecting a more expensive planned scale. Its ledger must be a successful prefix of 1 → 2 → 4; a failed, invalid, abandoned, duplicate or out-of-order scale blocks progression rather than being skipped or automatically retried.
 
-`plan` and `init` require the entire sequence to fit the cap and the finish deadline even without queue delays. Before every admission, the controller checks existing full reservations plus **all remaining scales**, under the existing lock. It never prunes an unaffordable 4-node run to spend the remainder at one node. The ledger must be a successful prefix of 1 → 2 → 4; an invalid, failed, abandoned, duplicate or out-of-order trial blocks progression rather than skipping or automatically retrying it. Each completed final result gates its successor. These are eligibility checks, not acceptance by the competition organisers.
+The completed logs show **565006 submitting 566113**, then **566113 submitting 569661**. Selection reasons identify the predefined weak-scaling sequence and absence of adaptive repeats. The last job recorded **`stopped: max_trials`** with 1478.4 reserved core-hours. All three node counts were covered exactly once. Each worker selected and submitted its successor from the allocation; no persistent login-node process or SSH connection was required.
 
-Each worker submits the next job before exiting. No SSH session, login daemon or persistent terminal is needed once the first job is accepted. Serial allocation limits total 2 h 12 min; queue waits may add up to two hours per admission before its finish-deadline window expires. A pending job that expires does not have a running worker to submit a successor. The campaign stops and needs inspection; automatic recovery/requeue is deliberately absent. Timeouts, invalid output, unexpected failures and scheduler failures stop progression. `STOP`, durable intents, ambiguous-submission reconciliation and all reservation safeguards still apply.
+| Nodes / job | Allocated CPUs | Allocation elapsed (s) | Actual core-hours | Full reservation (core-hours) |
+|---|---:|---:|---:|---:|
+| 1 / 565006 | 288 | 2021 | 161.68 | 211.2 |
+| 2 / 566113 | 576 | 1996 | 319.36 | 422.4 |
+| 4 / 569661 | 1152 | 2020 | 646.40 | 844.8 |
+| Total | | | **1127.44** | **1478.4** |
 
-### Preserving energy evidence without claiming a timed window
+Actual usage is `sum(allocation ElapsedRaw × AllocCPUS) / 3600`. Reservations use `nodes × 288 × 2640 / 3600`, covering the full rounded allocation limit and margins. Both charge all allocated cores, including idle cores. Do not calculate allocation usage from HPCG runtime or step time, or double-count overlapping step records. The 350.96-hour gap between actual usage and reservations was not refunded to admit more work. The official sequence stopped at its trial limit; the earlier diagnostics separately demonstrated stopping at the reservation limit.
 
-This sequence sets `archive_slurm_energy=true`. After each benchmark, a single bounded read-only `sacct` query captures all allocation and step records for known campaign jobs, including node lists/counts, allocated CPUs, state, exit status, start/end, elapsed seconds and raw joules. Unique timestamped PSV files and JSON receipts go under the **new campaign's `accounting/` directory**. No original reports, `result.json`, completed ledgers or previous snapshots are overwritten by later collections. Workers also recollect predecessors, whose final whole-job accounting is then available.
+The completed settings' **3721.9-core-hour balance estimate** and the pre-launch prediction of **2221.9 hours outside a 1500-hour allowance** are historical planning figures. They are not the current shared balance. A campaign cap is not a SAFE reservation and cannot control teammates or independent campaign ledgers.
 
-The `.0` estimate requires the completed `bench_wrapper.sh` step, positive finite energy/time/performance, a consistent benchmark duration and the expected accounted node count. It retains `energy_scope="slurm_benchmark_wrapper_step"` and `benchmark_window_energy_verified=false`. It does not populate the existing benchmark `gflops_per_w`, train an energy objective, or change HPL whole-job reporting. For multi-node runs use the **aggregated step joules / step wall seconds** and total HPCG GFLOP/s; do not multiply already aggregated energy by node count. Verify per-node coverage from the step node list before accepting multi-node estimates.
+### Completed energy capture and final archival
 
-Accounting may lag. A missing/delayed energy record or `sacct` timeout produces an explicit unavailable receipt and does not invalidate otherwise valid HPCG output or trigger a benchmark retry. The last worker cannot capture its own final whole-job reading while its allocation is still running. After completion, collect a fresh append-only snapshot with `archive-accounting` below. Slurm retains the accounting independently of the SSH session; that final collection needs no new allocation. If the latest receipt still lacks a completed `.0` or final allocation totals, inspect and collect again rather than reporting a zero value. A failed filesystem write stops the worker, preserving the existing failure-stop behavior.
+Campaign directory: `/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/campaign-official-144-20261015-01`.
 
-Read-only Cirrus inspection found `AcctGatherEnergyType=acct_gather_energy/pm_counters`, `JobAcctGatherFrequency=task=30,energy=30,filesystem=30,network=30`, `AcctGatherNodeFreq=0` and no profile plugin. Those settings do not prove sensor resolution, direct user access to compute-node counters or timed-solve coverage. Login-node RAPL paths and an installed `ipmitool` do not establish whole-node energy access on AMD compute nodes. The existing counter wrapper surrounds the full process and has no verified multi-node timed-window contract. Precise monitoring would require an accessible whole-node counter on every allocated node, consistent units/rollover handling and synchronised reads at actual HPCG timed-region boundaries, normally requiring benchmark instrumentation or a verified sampling/marker method. This remains unverified and is not enabled by the proposal. Do not delay valid long benchmarks for it: retain the original HPCG reports and use the explicitly scoped Slurm-step estimate as the fallback.
+Final raw snapshot: **`accounting/20261015T195613.739074Z-c77bbeb3.psv`**, with a matching JSON receipt captured at **19:56:13 UTC / 20:56:13 BST on 15 October 2026**. The three worker captures and the final archival files exist. Every final allocation and step record is `COMPLETED`, with exit status `0:0`. Each `.0` step is named `bench_wrapper.sh`; its node count and node list cover the expected 1, 2 or 4-node allocation.
 
-Sources: [HPCG duration/memory requirements](https://hpcg-benchmark.org/faq/), [Slurm energy fields and exclusive allocations](https://slurm.schedmd.com/sacct.html), [Slurm accounting configuration](https://slurm.schedmd.com/slurm.conf.html).
+| Nodes / job | Whole-job energy (J) | `.0` energy (J) | `.0` elapsed (s) | Step-average power (W) | Estimated GFLOP/s/W |
+|---|---:|---:|---:|---:|---:|
+| 1 / 565006 | 2013794 | 2011120 | 2013 | 999.066 | 0.135220 |
+| 2 / 566113 | 3826830 | 3821762 | 1988 | 1922.415 | 0.140354 |
+| 4 / 569661 | 8120129 | 8108790 | 2012 | 4030.214 | 0.132330 |
 
-### Validate locally and on Cirrus before authorising launch
+The method is `.0 ConsumedEnergyRaw / .0 ElapsedRaw` for average watts, then total HPCG GFLOP/s divided by that power. These are **Slurm benchmark-wrapper-step estimates**, not measurements restricted to HPCG's timed window. The step includes setup, initialisation and validation; its time differs from reported HPCG time. Multi-node energy is already aggregated: do not multiply it again by node count. **Never sum allocation, `.batch`, `.extern` and `.0` energy**, because their intervals overlap; `.batch` also covers only the first node in these multi-node records.
 
-The local review changes have not been deployed to Cirrus. Keep the old `controller-review/` checkout and all completed campaign directories intact. Put the reviewed implementation in a **fresh controller directory**, for example `/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/controller-official-20261015`, before running these commands. This also avoids breaking the frozen code hashes of historical campaigns. Do not update code underneath an active campaign.
+Final receipts retain `energy_scope="slurm_benchmark_wrapper_step"` and **`benchmark_window_energy_verified=false`**. The original benchmark `gflops_per_w` fields remain null/blank and the original benchmark-window energy scope remains unavailable. No historical result was backfilled with a step estimate. The controller still uses performance rather than an unverified energy objective, and HPL retains its existing explicitly scoped whole-job reporting.
 
-From that new checkout on Cirrus:
+A worker cannot collect its own final allocation total while that allocation is still running. Worker snapshots therefore preserved available records, and final archival subsequently recovered completed totals for every job. The final receipt verifies multi-node accounting coverage, not sensor calibration or timed-solve boundaries. Missing/delayed energy records do not invalidate a numerically valid benchmark or trigger an automatic compute retry. Raw PSV snapshots and JSON receipts are retained separately from original HPCG reports and `result.json`.
 
-```sh
-module load python/3.11.7
-python3 -m unittest discover -s tests -v
-python3 analysis/hpcg/overnight_energy.py
-python3 -m autotune.campaign plan --settings autotune/clusters/cirrus-hpcg-official-sequence.toml
-```
+Earlier read-only Cirrus inspection found `acct_gather_energy/pm_counters`, a 30-second energy accounting interval and no profile plugin. Direct compute-node counter access, update resolution, calibration and synchronised reads at actual timed-region boundaries remain unverified. A precise benchmark-window method would need verified all-node coverage and timing, normally with instrumentation or a validated sampling/marker method. The completed step-based estimates provide a defensible labelled fallback; they do not enable an efficiency objective.
 
-`plan` is the no-submission dry run: it validates the existing binary, memory, full-sequence budget, QoS limit and deadline without writing files or calling Slurm. Expected order: 1/2/4; expected total reservation: 1478.4; submission remains disabled. The revised implementation still needs this local-to-Cirrus validation and a real standard-QoS multi-node run. The earlier short-QoS canary validated chaining, not the new mode or multi-node numerical/performance behavior.
+### Inspect the completed evidence without launching work
 
-Once the code, allowance and finish time are reviewed, prepare **new** settings and state; never reuse a completed campaign path:
+Use the original deployed version when interpreting a frozen ledger; preserve its settings, code, input, raw HPCG summaries, build manifests and accounting archives. Do not update code beneath an existing campaign, reinitialise its state directory or replay the old launch procedure. All additional HPCG compute remains paused.
 
-```sh
-mkdir -p work
-cp -n autotune/clusters/cirrus-hpcg-official-sequence.toml work/official-144-20261015.toml
-export HPCG_SETTINGS="$PWD/work/official-144-20261015.toml"
-export HPCG_STATE=/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/campaign-official-144-20261015-01
-# Review/edit deadline, budget_since and agreed cap in HPCG_SETTINGS before init.
-# Confirm allow_submit is still false and HPCG_STATE does not already exist.
-python3 -m autotune.campaign plan --settings "$HPCG_SETTINGS"
-python3 -m autotune.campaign init --settings "$HPCG_SETTINGS" --state "$HPCG_STATE"
-python3 -m autotune.campaign tick --state "$HPCG_STATE" --dry-run
-```
-
-These commands do not submit. After **separate execution authorisation**, change only `safety.allow_submit` to true in that new settings file and launch once:
+For direct file inspection, no controller execution or new accounting capture is required:
 
 ```sh
-# Future authorised launch only; not executed during this review.
-python3 -m autotune.campaign tick --state "$HPCG_STATE" --submit
+HPCG_STATE=/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/campaign-official-144-20261015-01
+cat "$HPCG_STATE/state.json"
+cat "$HPCG_STATE/accounting/20261015T195613.739074Z-c77bbeb3.psv"
 ```
 
-After the first `submitted` job ID is returned, the chain can run without SSH. Check progress or final accounting when convenient:
+[Experiment 8](experiment_log.md#experiment-8-official-duration-weak-scaling--completed) lists the three original report filenames, per-run validation, build/source/controller/settings hashes and final accounting methodology. They were verified through read-only SSH during this documentation update. No controller, Slurm script, configuration, state or raw report was changed.
 
-```sh
-python3 -m autotune.campaign status --state "$HPCG_STATE" --scheduler
-python3 -m autotune.campaign archive-accounting --state "$HPCG_STATE"
-```
+## Analysis, remaining limits and possible future work
 
-Emergency stop for a future authorised campaign:
+The full progression is now demonstrated: initial pipeline and chaining tests, successful GCC/AOCC/CCE-strict builds, nine representative adaptive diagnostics with compiler and MPI/OpenMP comparisons, performance-guided selection and repeats, a reservation-limit stop, and a fixed unattended official-duration scaling sequence with final accounting. The close-to-linear 1/2/4-node scaling applies to the tested CCE 144×1 configuration; it does not prove that configuration is optimal at every node count.
 
-```sh
-python3 -m autotune.campaign stop --state "$HPCG_STATE"
-```
+There is only one official measurement per scale. The earlier 0.31% diagnostic candidate advantage remains unconfirmed against matched repeated 288×1 baselines. The two-node run's highest step-efficiency estimate is an observation, not a proven energy optimum. Losing compiler anchors were not explored at every layout. Timed-window energy, sensor calibration, formal competition acceptance, and some live pending/deadline/failure/crash/concurrent-admission cases remain unverified. Automated tests and successful normal runs do not cover every site-specific failure mode.
 
-The stop command creates `STOP` first and requests cancellation only for matching live campaign jobs. Manual sentinel fallback: `touch "$HPCG_STATE/STOP"`. No stop/cancel command was run during preparation. An unsuccessful fixed sequence needs human inspection and a separately budgeted recovery plan; acknowledgement does not skip or retry its failed scale.
+The team has confirmed **5000 total core-hours**. Its latest supplied shared Slurm snapshot, recorded for this documentation update on **15 October 2026**, showed **4294.48 used** and **705.52 estimated remaining**. The report's exact export timestamp and underlying shared-team records were not independently verified here; the energy archive's 20:56:13 BST capture time must not be assigned to this separate report. This is an accounting snapshot, **not a verified live SAFE balance**. Old template balances and unused campaign reservations are not current team funds.
+
+**All further HPCG compute jobs are paused while remaining HPL requirements are coordinated. The additional 72×1 official-duration experiment has not been launched.** This operational pause is documented here without altering campaign state or submission gates. Any possible later repeats, 72×1 comparisons, compiler/layout tests at each node count or instrumentation runs require fresh team agreement on budget and timing. Current non-compute work is analysis, presentation and confirmation of the competition's acceptance and energy-reporting requirements.

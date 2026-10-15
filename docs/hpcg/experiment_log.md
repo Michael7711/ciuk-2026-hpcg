@@ -1,6 +1,6 @@
 # CIUK Cluster Challenge 2026 – HPCG Benchmark
 
-This log separates completed diagnostics, current optimisation work and planned final benchmarking. A numerically `VALID` HPCG result is not automatically an official competition result: the reported duration and memory requirements must also be met.
+This log separates completed diagnostic experiments, completed official-duration benchmarks, analysis and possible future work. Numerical `VALID` status and the controller's duration/memory eligibility checks do not establish formal competition acceptance. As of the team update on 15 October 2026, all further HPCG compute jobs are paused while remaining HPL requirements are coordinated.
 
 ## HPCG Benchmark: 14OCT2026
 
@@ -373,24 +373,124 @@ python3 analysis/hpcg/overnight_energy.py
 The analysis rejects missing or duplicate job IDs, unmatched job sets and unusable measurements. `--output NEW.csv` writes a new derived file and refuses to overwrite one. The raw PSV and historical benchmark table remain the inputs. The companion [analysis notebook](../../analysis/hpcg/overnight-energy.ipynb) contains the executed standard-library calculations and the nine-job table; its Jupyter frontend execution remains unverified.
 
 
-## Current Work: Prepare Official-Duration Weak Scaling
+## Experiment 8: Official-Duration Weak Scaling — completed
 
-The recovered energy analysis is complete. A **submission-disabled proposal** now defines one CCE reference 144×1 run per node at **1 → 2 → 4 nodes**, with a fixed **128×128×136 local grid**, **320864256 equations per node** and **1860 requested benchmark seconds**. The controller must verify at least **1800 reported seconds**, all numerical checks and at least one-quarter of physical memory per node before progressing. At the measured one-node data footprint, 229.477 GB/node exceeds the 206.158 GB/node threshold; longer multi-node reports must confirm it.
+Date: **15 October 2026**. The unattended sequence ran **18:42:28–20:23:07 BST**, completing all three scheduled node counts. These are official-duration benchmark measurements, separate from the short diagnostics above. All passed the controller's eligibility checks; **formal competition acceptance has not been established**.
 
-The proposal reserves **44 minutes per job**, including 600 s of setup allowance and 180 s for accounting/controller work. Worst-case reservations are **211.2 + 422.4 + 844.8 = 1478.4 core-hours**. The proposed cap is **1500**, against the user-reported **3721.9** shared SAFE balance, leaving **2221.9 core-hours** outside this HPCG allowance. This is a proposed team allocation, not a live SAFE guarantee. The [controller guide](autotuning-controller.md#proposed-official-duration-sequence--not-launched) contains the disabled configuration, exact checks and future launch commands.
+### Verified configuration and provenance
 
-144×1 is a provisional performance candidate. 72×1 remains a plausible energy-oriented alternative, using local 152×168×176 and 323592192 equations per node. Its single diagnostic estimate does not justify automatically spending a second full scaling sequence. Repeating both reduced-rank candidates against 288×1 remains planned; the small 0.31% performance difference is unconfirmed. **No new campaign has been submitted and no official-duration result is claimed.**
+| Setting | Recorded value |
+|---|---|
+| Campaign directory | `/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/campaign-official-144-20261015-01` |
+| Deployed controller | `controller-official-20261015-v1/`, under the same user run root |
+| Campaign settings | `controller-official-20261015-v1/work/official-144-20261015-v1.toml` |
+| Mode / order | `sequence`, weak scaling; 1 → 2 → 4 nodes, one run at each size |
+| Build | HPCG 3.1, `cce19-reference`; CCE 19.0.0, Cray `CC` MPI wrapper |
+| Flags | `-O3 -ffast-math -fopenmp` |
+| Modules | `PrgEnv-cray/8.6.0`, `cce/19.0.0`, `cray-mpich/8.1.32` |
+| Executable | `/epccfs/tc079/tc079/shared/hpcg/build/bin/xhpcg` |
+| Executable SHA-256 | `1ecfef30466d29e1a5f830d4f9bb7a0f431b1d3d77b14c953ee3a460899321de` |
+| Source hash in ledger | `dd94e9371a3f1b21972f60a84d8a787137b6771ef5df60fac08c9a50404596ca` |
+| Controller hash in ledger | `425868d29ffc917631e1d8fa82f1974186baf057b4d0a338d378bf7f567c48f1` |
+| Settings hash in ledger | `6d817843b250d83cd66c9a430b62ad4701e22d2b608a9f257f6e2bcf44789047` |
+| Per-node layout | 144 MPI ranks × 1 OpenMP thread; 144 active cores, 288 allocated cores |
+| Local grid | 128×128×136 per rank at every scale |
+| Equations per node | 320864256; totals 320864256, 641728512 and 1283457024 |
+| Requested duration / kind | 1860 s / `final` |
+| Scheduler | Exclusive standard partition, standard QoS; no automatic requeue |
+| Reservation per node | 2640 s = 44 min: 1860 benchmark + 600 setup + 180 controller/accounting |
+| Trial limit / cap | Three trials / 1500 core-hours |
+| Pending timeout / finish deadline | 7200 s / 16 October 2026, 18:00 UTC (19:00 BST) |
+| Energy archival | `archive_slurm_energy=true`; raw PSV snapshots and separate JSON estimate receipts |
 
-## Planned Experiments and Competition Results
+The previously documented 1500-hour proposal became this completed campaign. The frozen settings retain a **3721.9-core-hour pre-launch advisory balance estimate**; the earlier prediction of 2221.9 hours outside that allowance was a planning calculation, not an observed remaining balance. The newer shared accounting snapshot below supersedes those figures for team planning. The repository's disabled template and the enabled settings used for this completed campaign are distinct; no settings were changed during this documentation update.
 
-- Repeat the 144×1 CCE reference candidate (job 558657) and the 288×1 baseline, matching equation counts as closely as possible and reporting variation before accepting the apparent 0.31% improvement.
-- Measure scaling from one to four nodes, keeping strong- and weak-scaling comparisons clearly identified and recording the best configuration at each size.
-- Run selected configurations for at least **1800 reported benchmark seconds**, with the required memory footprint, for official competition measurements.
-- Verify benchmark-window energy measurement and multi-node coverage before reporting benchmark GFLOP/s/W.
-- Assemble the final scripts, results, budget accounting and presentation material from the recorded evidence.
+### Performance, validation and weak scaling
 
-**No official 30-minute competition result is recorded in this log yet.** All measurements above are diagnostic.
+| Nodes | Job | Total MPI ranks | GFLOP/s | Reported HPCG time (s) | Total data memory (GB) | Weak-scaling efficiency | Validation |
+|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | 565006 | 144 | 135.094 | 1898.57 | 229.477 | 100% | VALID; four checks PASSED; controller eligible |
+| 2 | 566113 | 288 | 269.818 | 1857.91 | 458.954 | 99.86% | VALID; four checks PASSED; controller eligible |
+| 4 | 569661 | 576 | 533.317 | 1879.79 | 917.907 | 98.69% | VALID; four checks PASSED; controller eligible |
 
-### Energy interpretation
+For `N` nodes, weak-scaling efficiency is `GFLOP/s(N) / (N × 135.094) × 100`. The four-node speedup is `533.317 / 135.094 = 3.94775`, approximately **3.95×**. Local dimensions, rank count per node and equations per node stayed fixed, so this is a weak-scaling comparison, not strong scaling.
 
-Historical whole-job readings remain labelled as whole-job measurements. The recovered table separately labels `.0` wrapper-step energy, average power and **estimated** GFLOP/s/W. Neither scope is the timed benchmark window, and the original campaign results still record that window as unavailable. Multi-node comparisons must cover every participating node and use total job GFLOP/s divided by total step-average power, without multiplying an already aggregated Slurm energy reading by the node count.
+All three original reports show spectral convergence, symmetry, iteration-count and reproducibility checks as `PASSED`, the expected ranks/threads/local grid, and at least **1800 reported benchmark seconds**. Reported data memory is approximately **229.477 GB/node**, above the controller's **206.158 GB/node** minimum (one quarter of nominal 768 GiB), and below its memory ceiling. The ledger and each `result.json` record `usable=true` and `official_eligible=true`. These are the controller's checks, not an assertion that competition organisers have accepted the results.
+
+Original summaries are under the campaign's `runs/` directory:
+
+| Job | Run directory | Original HPCG report |
+|---|---|---|
+| 565006 | `hpcg-final-n1-144x1-f55e825c-r1` | `HPCG-Benchmark_3.1_2026-10-15_19-16-05.txt` |
+| 566113 | `hpcg-final-n2-144x1-9e7be705-r1` | `HPCG-Benchmark_3.1_2026-10-15_19-49-22.txt` |
+| 569661 | `hpcg-final-n4-144x1-29be9860-r1` | `HPCG-Benchmark_3.1_2026-10-15_20-23-03.txt` |
+
+These reports, `result.json`, `build.json`, ledger entries and the chaining logs were checked through **read-only SSH** for this documentation update. Resolved paths may use the equivalent `/mnt/nfs/epccfs/projects/...` prefix. No original report, result, setting or ledger was modified.
+
+### Unattended execution and stopping evidence
+
+Job **565006** recorded submission of **566113**; job **566113** recorded submission of **569661**. Their selection reason was `predefined weak-scaling sequence; cover 1 then 2 then 4 nodes; no adaptive repeats`. Job **569661** recorded `stopped: max_trials` and **1478.4 reserved core-hours**. The chain covered each intended node count once, validated each result before proceeding, and required no persistent SSH connection or login-node controller process.
+
+This is separate from Experiment 7's reservation-limit stop. The diagnostics stopped because another reservation would not fit; the official sequence stopped because all three scheduled trials had run. Neither campaign used remaining allowance as a reason to launch extra work automatically.
+
+### Recovered final energy accounting
+
+Final snapshot: `accounting/20261015T195613.739074Z-c77bbeb3.psv`, with a matching JSON receipt, under the completed campaign directory. The receipt records capture at **19:56:13 UTC / 20:56:13 BST on 15 October 2026**. All allocation and step rows are `COMPLETED` with exit status `0:0`; `.0` is `bench_wrapper.sh`. The `.0` records cover **1, 2 and 4 nodes**, with **288, 576 and 1152 allocated CPUs**, and node lists matching their allocations.
+
+| Nodes / job | Whole-job energy (J) | `.0` step energy (J) | `.0` duration (s) | Step-average power (W) | Estimated GFLOP/s/W |
+|---|---:|---:|---:|---:|---:|
+| 1 / 565006 | 2013794 | 2011120 | 2013 | 999.066 | 0.135220 |
+| 2 / 566113 | 3826830 | 3821762 | 1988 | 1922.415 | 0.140354 |
+| 4 / 569661 | 8120129 | 8108790 | 2012 | 4030.214 | 0.132330 |
+
+`step_average_power_w = .0 ConsumedEnergyRaw / .0 ElapsedRaw`; `estimated_gflops_per_w = HPCG GFLOP/s / step_average_power_w`. For example, the four-node estimate is `533.317 / (8108790 / 2012) = 0.132330 GFLOP/s/W`, rounded. Use the total step energy and total HPCG performance across all nodes; **do not multiply the already aggregated energy by node count**.
+
+These estimates cover the Slurm benchmark-wrapper step, including initialisation, setup and validation outside HPCG's timed benchmark window. They **do not verify timed-window energy efficiency**. The final receipts retain `energy_scope="slurm_benchmark_wrapper_step"` and `benchmark_window_energy_verified=false`. The original benchmark `gflops_per_w` values remain **null** (blank in the corresponding reporting rows), and their benchmark energy scope remains unavailable. The estimates are separate archival fields; no benchmark record was backfilled or overwritten.
+
+**Never add allocation, `.batch`, `.extern` and `.0` energy readings:** their intervals overlap. In these multi-node jobs `.batch` covers only the first node, while `.0` covers the full benchmark allocation. The whole-job energies above are recorded separately and must not be added to step energies. Automatic captures occurred after each benchmark, and the final archival snapshot recovered completed allocation totals after the last worker exited; early running-job readings are not the final measurements.
+
+### Actual allocation usage versus conservative reservations
+
+| Nodes / job | Allocation elapsed (s) | Allocated CPUs | Actual core-hours | Ledger reservation (core-hours) |
+|---|---:|---:|---:|---:|
+| 1 / 565006 | 2021 | 288 | 161.68 | 211.2 |
+| 2 / 566113 | 1996 | 576 | 319.36 | 422.4 |
+| 4 / 569661 | 2020 | 1152 | 646.40 | 844.8 |
+| Total | | | **1127.44** | **1478.4** |
+
+Actual usage is `sum(allocation ElapsedRaw × AllocCPUS) / 3600`, using only allocation rows, not overlapping steps. It includes setup, benchmark and controller time, and counts all allocated cores even though only 144 per node were configured to execute benchmark threads. The reported HPCG runtime and the wrapper-step duration are different intervals and are not used to calculate allocation core-hours.
+
+Reservations use the full **2640-second allocation limit**, including conservative setup/controller allowances, rather than observed elapsed time. The ledger retained **1478.4** against its **1500-core-hour cap**, even though actual usage was **1127.44**. The **350.96-hour difference** was not refunded to extend this campaign; the 21.6-hour cap headroom was not an instruction to start more jobs. Neither the reservation total nor this campaign's actual usage is a verified live team SAFE balance.
+
+## Analysis: What the Controller Demonstrated
+
+The project progressed from the initial small Slurm pipeline tests to **558642 → 558643** automatic chaining, isolated GCC/AOCC/CCE-strict compilation and validation, **nine VALID adaptive diagnostics**, and finally the completed **1 → 2 → 4-node official-duration sequence**. Compiler screening used matching conditions and separate build identities; repeated anchors and measured performance guided subsequent nearby MPI/OpenMP and CPU-utilisation choices. The expanded **58-test suite passed on Cirrus**, as reported by the team, following the earlier 41-test validation. This documentation-only review did not rerun the suite or locate a retained Cirrus test-console log in the inspected controller directories.
+
+The experiments demonstrated normal unattended operation, reproducible build identity, numerical validation, result-driven diagnostic selection, a clean no-fit reservation stop, fixed coverage of each node count, and automatic accounting capture followed by final archival. Near-linear weak scaling was observed for the chosen CCE 144×1 configuration. The two-node run had the highest step-based efficiency estimate in the official sequence; the four-node run had the highest total performance and power.
+
+These observations do **not** prove a globally optimal compiler/layout or an energy optimum. There is one official measurement per node count, no repeated official scaling curve, and no official-duration 72×1 comparison. The earlier apparent 0.31% diagnostic improvement over 288×1 remains unconfirmed by matched repeated measurements. Benchmark-window counter access, synchronisation and sensor calibration remain unverified, as do formal competition acceptance and some live failure/deadline/crash/concurrent-admission paths. Automated safeguards and successful normal runs do not establish every site-specific failure behavior.
+
+## Current Team Budget and Compute Pause
+
+The team has confirmed a **5000-core-hour total allocation**. The latest team-supplied **shared Slurm accounting snapshot**, recorded for this documentation update on **15 October 2026**, showed:
+
+| Quantity | Snapshot value (core-hours) |
+|---|---:|
+| Total team allocation | 5000 |
+| Shared accounting usage | 4294.48 |
+| Estimated remaining | **705.52** |
+
+`5000 − 4294.48 = 705.52`. This is a dated accounting estimate, **not a verified live SAFE balance**. The exact export timestamp and underlying shared-team report were not supplied or independently verified during this review; the **20:56:13 BST** timestamp above belongs to the official campaign's energy archive, not this shared balance report. Other team jobs may change the balance. Do not treat old template/advisory values or the campaign's unspent reservation margin as current shared funds.
+
+**All further HPCG compute jobs are paused while the team coordinates the remaining HPL requirements.** The additional **72×1 official-duration experiment has not been launched**. This is the team's operational pause; this documentation update does not change any submission gate, job or campaign state.
+
+## Possible Future Work — Compute Subject to Team Agreement
+
+Current non-compute work is to analyse and present the completed measurements, retain original reports and accounting, and confirm the competition's acceptance and energy-reporting requirements. Any later compute work needs a newly agreed allowance after HPL coordination:
+
+- Repeat matched 144×1 and 288×1 comparisons before accepting the apparent 0.31% diagnostic improvement.
+- Consider the unlaunched 72×1 official-duration comparison and other compiler/layout choices, accounting for measurement variation and node count.
+- Repeat the weak-scaling curve if an agreed budget permits; do not infer an optimum from one run per scale.
+- Investigate synchronised, per-node measurement of the actual timed HPCG region before reporting benchmark-window GFLOP/s/W.
+
+Completed official-duration measurements remain distinct from the historical diagnostics and from possible future experiments. No further HPCG compute is authorised by this log.

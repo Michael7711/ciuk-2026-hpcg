@@ -2,11 +2,13 @@
 
 My work on the HPCG benchmark for the CIUK 2026 EPCC Cluster Challenge, using Cirrus. The aim is to improve performance and energy efficiency, then demonstrate scaling from one to four nodes with reproducible results.
 
-## Completed experiments
+**Current status — 15 October 2026:** the official-duration 1 → 2 → 4-node campaign is complete. **All further HPCG compute jobs are paused** while the team coordinates the remaining HPL requirements. The additional 72×1 official-duration experiment has **not been launched**.
+
+## Completed diagnostic experiments
 
 - Built and validated an HPCG 3.1 reference implementation with Cray CCE 19.
 - Compared problem sizes and MPI/OpenMP layouts on one Cirrus node. An initial larger reference run reached **134.124 GFLOP/s** with 288 MPI ranks, one thread per rank and **231.733 GB** of reported data memory.
-- Developed a Python and Slurm optimisation controller; all **41 automated tests passed on Cirrus**.
+- Developed a Python and Slurm optimisation controller. The initial **41 automated tests passed on Cirrus**; the expanded suite subsequently passed **58 tests on Cirrus**.
 - Verified automatic job chaining with jobs **558642 → 558643**, including stopping at the two-trial limit.
 - Compiled and numerically validated GCC 14 (**558644**), AOCC 5 (**558647**) and CCE 19 without fast math (**558649**).
 - Completed the **15 October 2026 overnight campaign**: nine numerically VALID diagnostics, with measured compiler screening, repeats and adaptive CPU-layout selection.
@@ -27,16 +29,38 @@ Actual Slurm allocation usage was **190.16 core-hours**; the controller retained
 
 Recovered Slurm accounting now provides a separate **wrapper-step average-power estimate** for all nine diagnostics. CCE 144×1 gives **0.1461 estimated GFLOP/s/W** at 135.342 GFLOP/s; 72×1 gives **0.1570** at 131.806 GFLOP/s; baseline job 558650 gives **0.1282**. These are not timed benchmark-window efficiencies. Whole-job and step intervals overlap and their energy readings must not be added. The [experiment log](docs/hpcg/experiment_log.md#recovered-slurm-step-energy-analysis--15-october-2026) records every raw value, calculation and limitation. The runs remain **diagnostic**, below 1800 reported seconds.
 
-## Current work: prepare official-duration weak scaling
+## Completed official-duration weak-scaling campaign
 
-The proposed [disabled sequence configuration](autotune/clusters/cirrus-hpcg-official-sequence.toml) uses CCE reference **144 MPI ranks × 1 thread per node**, fixed local **128×128×136** grids, and **1860 requested seconds**, once each at **1, 2 and 4 nodes**. It requires at least 1800 reported seconds, numerical validation and the memory threshold before chaining to the next scale. The proposed **1500-core-hour cap** covers **1478.4 worst-case reservation hours** and leaves **2221.9** of the stated 3721.9 shared SAFE balance outside this allowance. Agree that allowance with the HPL team before launch.
+On **15 October 2026**, the controller completed **565006 → 566113 → 569661** unattended, then stopped at its three-trial limit. All runs used **CCE 19 reference**, **144 MPI ranks × 1 OpenMP thread per node**, a fixed **128×128×136 local grid per rank**, and **1860 requested benchmark seconds**. The workload was **320864256 equations per node**.
 
-The sequence is prepared for review and **has not been launched**. 144×1 is a provisional speed candidate; 72×1 is a provisional energy-estimate candidate. Repeated matched measurements are still needed to confirm either advantage. See the [controller guide](docs/hpcg/autotuning-controller.md#proposed-official-duration-sequence--not-launched) for validation, accounting, launch and stop commands.
+| Nodes | Slurm job | GFLOP/s | Reported HPCG runtime (s) | Weak-scaling efficiency | Validation |
+|---:|---:|---:|---:|---:|---|
+| 1 | 565006 | 135.094 | 1898.57 | 100% | VALID; controller eligible |
+| 2 | 566113 | 269.818 | 1857.91 | 99.86% | VALID; controller eligible |
+| 4 | 569661 | 533.317 | 1879.79 | 98.69% | VALID; controller eligible |
 
-## Planned experiments
+Efficiency is `GFLOP/s(N) / (N × 135.094) × 100`. Four nodes achieved **3.95×** the one-node performance. All three reports passed the four numerical checks and the controller's duration and memory eligibility checks. **Controller eligibility does not establish formal competition acceptance**, which has not been verified.
 
-Repeat the strongest configurations at representative problem sizes, test one-to-four-node scaling, and run the finalists for at least **1800 reported benchmark seconds** with the required memory footprint. Final results will need measured energy, clearly labelled GFLOP/s/W, reproducible scripts and presentation material.
+Final Slurm accounting was archived for all three jobs:
 
-The [controller guide](docs/hpcg/autotuning-controller.md) describes selection, budget accounting, provenance, validation and emergency stopping. Repository templates retain submission-disabled defaults; this documentation update does not change any campaign or enable submissions.
+| Nodes | Whole-job energy (J) | Wrapper-step energy (J) | Step duration (s) | Step-average power (W) | Estimated GFLOP/s/W |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 2013794 | 2011120 | 2013 | 999.066 | 0.135220 |
+| 2 | 3826830 | 3821762 | 1988 | 1922.415 | 0.140354 |
+| 4 | 8120129 | 8108790 | 2012 | 4030.214 | 0.132330 |
+
+These estimates divide HPCG performance by average power over the Slurm `bench_wrapper.sh` `.0` step. They include setup and validation outside HPCG's timed window. They **do not verify benchmark-window energy**, do not populate the original `gflops_per_w` field, and must not be combined with overlapping whole-job, `.batch` or `.extern` energy readings. The two-node run had the highest step-based estimate in this sequence; one measurement per node count does not establish a general energy optimum.
+
+The campaign used **1127.44 actual core-hours**: 161.68, 319.36 and 646.40 at 1, 2 and 4 nodes. Its ledger retained **1478.4 core-hours of conservative reservations** under a **1500-core-hour cap**. Reservations cover full allocation limits; actual usage uses allocation elapsed time and allocated CPUs. The difference was not refunded to admit extra trials.
+
+Campaign: `/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/campaign-official-144-20261015-01`. The [experiment log](docs/hpcg/experiment_log.md#experiment-8-official-duration-weak-scaling--completed) records original report paths, build provenance, chaining evidence and the final accounting snapshot.
+
+## Team budget and possible future work
+
+The team has confirmed a **5000-core-hour total allocation**. The latest team-supplied shared Slurm accounting snapshot, recorded for this update on **15 October 2026**, showed **4294.48 core-hours used** and **705.52 estimated remaining**. This is a dated accounting snapshot, **not a verified live SAFE balance**; its exact shared-report export time was not supplied. The controller's frozen pre-launch balance estimate is historical and must not be used as the current balance.
+
+**Further HPCG compute remains paused.** Coordinate the remaining HPL requirements before considering more HPCG runs. The additional 72×1 official-duration experiment has not been launched. Possible later work includes matched repeats against 288×1, tests of 72×1 and other configurations at each node count, and verified timed-window energy instrumentation, subject to a new agreed allowance. The observed scaling curve and adaptive search do not prove an optimal HPCG configuration or confirm the earlier apparent 0.31% diagnostic speedup.
+
+Current work is analysis and presentation: retain the original reports and accounting, explain the diagnostic-to-official progression, and confirm the competition's submission and energy-reporting requirements. The [controller guide](docs/hpcg/autotuning-controller.md) records what was tested, how budgets and failure stops work, and what remains unverified. Repository templates retain submission-disabled defaults; this documentation update changes no code, configuration, job or campaign state.
 
 The automation is based on [Rory's CIUK project](https://github.com/roryhory/ciuk-2026-epcc). HPCG itself comes from the [official benchmark repository](https://github.com/hpcg-benchmark/hpcg).
