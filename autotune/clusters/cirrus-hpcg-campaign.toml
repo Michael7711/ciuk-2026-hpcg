@@ -1,0 +1,87 @@
+# Review template. Nothing submits until safety.allow_submit=true AND tick --submit.
+[hardware]
+cores_per_node = 288
+sockets_per_node = 2
+numa_per_node = 8
+l3_per_node = 24
+mem_mib_per_node = 744768
+max_mem_fraction = 0.80
+
+[slurm]
+shell = '/bin/bash --login'
+account = 'tc079-abszero'
+partition = 'standard'
+qos = 'short'
+final_qos = 'standard'
+hpcg_overhead_s = 600
+max_walltime_s = 1200
+final_max_walltime_s = 3600
+modules = []
+
+[safety]
+allow_submit = false
+
+[campaign]
+source = '/epccfs/tc079/tc079/shared/hpcg'
+state_prefix = '/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1'
+# Set these to the actual campaign baseline and closing time before init.
+# Explicit timezone required. Future deadline is a template, not the challenge deadline.
+budget_since = '2026-10-15T00:00:00+00:00'
+deadline = '2026-10-16T18:00:00+00:00'
+cap_core_hours = 500.0
+# Advisory user-provided SAFE estimate, NOT a live/team-wide balance check.
+team_safe_balance_estimate_core_hours = 4908.5
+max_trials = 12
+pending_timeout_s = 7200
+build_timeout_s = 180
+control_margin_s = 60
+# Start by comparing layouts/builds on one node. For independent scaling campaigns
+# set nodes=[1,2,4] BEFORE init; settings are immutable after init (see runbook).
+nodes = [1]
+scaling = 'weak'
+# 288 * 104^3, the measured 231.733 GB reference problem per node.
+points_per_node = 323960832
+volume_tolerance = 0.025
+threads = [1,2,4,6,12]
+fill = [1.0,0.5,0.25]
+min_ranks_per_node = 24
+runtime_s = 60
+kind = 'diagnostic'
+repeats = 2
+repeat_every = 4
+noise_tolerance = 0.02
+objective = 'performance'
+# Data memory ~715 B/equation in the measured reference. Use a safe peak bound.
+memory_bytes_per_point = 900
+memory_headroom = 1.25
+# Nominal 768 GiB; official eligibility uses physical memory, not Slurm RealMemory.
+physical_memory_bytes_per_node = 824633720832
+
+[[builds]]
+id = 'cce19-reference'
+binary = '/epccfs/tc079/tc079/shared/hpcg/build/bin/xhpcg'
+sha256 = '1ecfef30466d29e1a5f830d4f9bb7a0f431b1d3d77b14c953ee3a460899321de'
+modules = ['PrgEnv-cray/8.6.0','cce/19.0.0','cray-mpich/8.1.32']
+flags = ['-O3','-ffast-math','-fopenmp']
+
+[[builds]]
+id = 'cce19-strict'
+modules = ['PrgEnv-cray/8.6.0','cce/19.0.0','cray-mpich/8.1.32']
+flags = ['-O3','-fopenmp']
+
+[[builds]]
+id = 'gnu14-fast'
+modules = ['PrgEnv-gnu/8.6.0','gcc-native/14.2','cray-mpich/8.1.32']
+flags = ['-O3','-ffast-math','-fopenmp']
+
+[[builds]]
+id = 'aocc5-fast'
+modules = ['PrgEnv-aocc/8.6.0','aocc/5.0.0','cray-mpich/8.1.32']
+flags = ['-O3','-ffast-math','-fopenmp']
+
+[[builds]]
+id = 'intel2025-fast'
+# Available wrapper, lower priority: explicitly enable after reviewing first three alternatives.
+enabled = false
+modules = ['PrgEnv-intel/8.6.0','intel/2025.0','cray-mpich/8.1.32']
+flags = ['-O3','-ffast-math','-qopenmp']

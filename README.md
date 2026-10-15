@@ -5,24 +5,31 @@ My work on the HPCG benchmark for the CIUK 2026 EPCC Cluster Challenge, using Ci
 ## Completed experiments
 
 - Built and validated an HPCG 3.1 reference implementation with Cray CCE 19.
-- Compared problem sizes and MPI/OpenMP layouts on one Cirrus node. A larger reference run reached **134.124 GFLOP/s** with 288 MPI ranks, one thread per rank and **231.733 GB** of reported data memory.
+- Compared problem sizes and MPI/OpenMP layouts on one Cirrus node. An initial larger reference run reached **134.124 GFLOP/s** with 288 MPI ranks, one thread per rank and **231.733 GB** of reported data memory.
 - Developed a Python and Slurm optimisation controller; all **41 automated tests passed on Cirrus**.
 - Verified automatic job chaining with jobs **558642 → 558643**, including stopping at the two-trial limit.
 - Compiled and numerically validated GCC 14 (**558644**), AOCC 5 (**558647**) and CCE 19 without fast math (**558649**).
+- Completed the **15 October 2026 overnight campaign**: nine numerically VALID diagnostics, with measured compiler screening, repeats and adaptive CPU-layout selection.
 
 These are **diagnostic results**, not official competition results. The compiler and chaining smoke tests used deliberately small problems to check that the workflow works; their performance ratings should not be used to choose the final compiler.
 
 Settings, measurements, validation status and campaign locations are recorded in the [experiment log](docs/hpcg/experiment_log.md).
 
-## Current work: overnight optimisation
+## Completed overnight campaign: 15 October 2026
 
-The next stage is unattended diagnostic optimisation on Cirrus. Rather than manually submitting each run, the controller records a result, uses the measurements to select the next experiment and submits its successor through Slurm. It screens compilers under matching conditions, then explores promising MPI/OpenMP layouts and active CPU utilisation. Repeated measurements help distinguish a useful improvement from run-to-run variation.
+The unattended campaign ran from **02:30 to 03:10 BST**, submitting nine Slurm jobs automatically and stopping when another full reservation would not fit its 500-core-hour cap. All nine jobs completed and passed HPCG numerical validation. They used one exclusive Cirrus node and 120 requested benchmark seconds, with approximately comparable problems using **229–232 GB** of reported data memory.
 
-The performance search will use realistic, memory-resident HPCG problems, with approximately comparable equation counts during CPU-layout comparisons. Every submitted allocation counts towards a fixed campaign reservation cap, including pending and failed jobs. The controller stops at its limits or on a critical failure. Short diagnostic runs let us narrow the choices before spending the budget on official runs of at least 30 minutes.
+The best individual result was **135.342 GFLOP/s**, using the **CCE reference build, 144 MPI ranks and one OpenMP thread per rank** (job **558657**). The repeated **288×1 CCE reference baseline averaged 134.918 GFLOP/s**. The apparent **0.31% improvement is not confirmed**: the 144×1 configuration was measured only once and used about 0.96% fewer equations. It is a candidate for repeated testing, not an established speedup.
 
-The overnight campaign's live settings and Slurm job ID have **not yet been verified** for this update, so they are not listed here. The overnight optimisation is not recorded as completed. The controller workflow itself has been tested successfully.
+The compiler screen used matching 288×1, 104³-local-grid conditions. CCE reference led the observed anchor results, so the controller repeated it and explored 144×1, 144×2 and 72×1 layouts. It also repeated GNU to assess variation. The [experiment log](docs/hpcg/experiment_log.md#experiment-7-overnight-adaptive-campaign--completed) contains all nine measurements, compiler means, selection reasons and campaign paths.
 
-Whole-job Slurm energy can include compilation, setup and teardown; it is not necessarily benchmark-window energy. The current controller optimises **GFLOP/s**, with energy-efficiency optimisation deferred until an appropriate measurement window is verified.
+Actual Slurm allocation usage was **190.16 core-hours**; the controller retained **489.6 core-hours of worst-case reservations**. These are different quantities. The remaining 10.4 hours of reservation headroom could not fit another trial, so the controller stopped even though actual usage was much lower.
+
+Whole-job Slurm energy includes work outside the timed solver and is not necessarily benchmark-window energy. No benchmark GFLOP/s/W is reported from this campaign. These remain **diagnostic results**, well below the 1800-second requirement for official competition benchmarks.
+
+## Current work: confirm the candidate result
+
+Repeat the 144×1 candidate and the 288×1 reference with matched workloads, and check whether the small performance difference persists. The initial overnight campaign is complete; no follow-up campaign or official result is claimed here.
 
 ## Planned experiments
 

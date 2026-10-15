@@ -1,6 +1,6 @@
 # HPCG campaign controller
 
-Status: 15 October 2026. The Python/Slurm controller has passed all 41 automated tests on Cirrus, completed a two-job chaining test, and compiled and validated the GNU, AOCC and CCE strict recipes. These are completed diagnostic checks; the larger overnight optimisation is current preparation, not a completed result. Detailed settings and measurements are in the [experiment log](experiment_log.md).
+Status: 15 October 2026. The Python/Slurm controller has passed all 41 automated tests on Cirrus, completed a two-job chaining test, and compiled and validated the GNU, AOCC and CCE strict recipes. The initial overnight campaign has also completed nine VALID diagnostics. Its best single result, 135.342 GFLOP/s at CCE reference 144×1, is an unconfirmed 0.31% above the repeated 288×1 baseline; it still needs repeat measurements. No official 30-minute result is claimed. Detailed settings and measurements are in the [experiment log](experiment_log.md).
 
 ## Cirrus environment and tested builds
 
@@ -19,7 +19,7 @@ Reference source: `/epccfs/tc079/tc079/shared/hpcg`, commit `114602d458d1034faa5
 
 Reference binary: `build/bin/xhpcg`, SHA-256 `1ecfef30466d29e1a5f830d4f9bb7a0f431b1d3d77b14c953ee3a460899321de`. Linked libraries include Cray MPI 8.1.32 and CCE's `libcraymp`. The historical 288-rank, one-thread, 104³-local-grid result reports 134.124 GFLOP/s, 231.733 GB of data, four passed validation tests, and 134.952 seconds of benchmark time. It is numerically valid but too short for final submission.
 
-Cirrus reports 288 allocatable physical CPUs and 744768 MiB of schedulable memory on standard nodes. Slurm's virtual socket layout reports 8 × 36; the physical architecture is two 144-core EPYC 9825 processors, eight NUMA domains and 24 twelve-core CCDs. Never infer physical sockets from `scontrol` alone. The inspected account permits `short` (20 minutes) and `standard` (48 hours) QoS. The submitting user's queue was empty at the documentation check on 15 October 2026, approximately 02:27 BST; this is a dated observation, not a live queue display.
+Cirrus reports 288 allocatable physical CPUs and 744768 MiB of schedulable memory on standard nodes. Slurm's virtual socket layout reports 8 × 36; the physical architecture is two 144-core EPYC 9825 processors, eight NUMA domains and 24 twelve-core CCDs. Never infer physical sockets from `scontrol` alone. The inspected account permits `short` (20 minutes) and `standard` (48 hours) QoS. The earlier documentation check at approximately 02:27 BST preceded the overnight launch; the completed sequence is now recorded below. Queue observations are dated snapshots, not a live display.
 
 Sources: [Cirrus hardware](https://docs.cirrus.ac.uk/user-guide/hardware/), [compiler environments](https://docs.cirrus.ac.uk/user-guide/development/), [HPCG official requirements](https://www.hpcg-benchmark.org/faq/index.html), [Slurm deadline semantics](https://slurm.schedmd.com/sbatch.html#OPT_deadline).
 
@@ -27,9 +27,9 @@ Sources: [Cirrus hardware](https://docs.cirrus.ac.uk/user-guide/hardware/), [com
 
 The 41 automated tests passed on Cirrus. The live chaining campaign then ran **558642 → 558643** and stopped at `max_trials`. Separate GNU (**558644**), AOCC (**558647**) and CCE strict (**558649**) campaigns compiled their executables, passed all four HPCG V&V checks and stopped at their one-trial limits. Slurm records all five jobs as `COMPLETED`.
 
-Results, selection reasons, validation status and executable provenance are retained in the corresponding campaign directories. The [completed-experiment records](experiment_log.md#experiment-5-autonomous-controller-and-job-chaining--completed) contain the measurements and paths. Passing these canaries confirms the tested single-node workflow, not the performance of a future overnight campaign or every recovery path.
+Results, selection reasons, validation status and executable provenance are retained in the corresponding campaign directories. The [completed-experiment records](experiment_log.md#experiment-5-autonomous-controller-and-job-chaining--completed) contain the measurements and paths. These canaries established the small-problem workflow before the representative overnight campaign. They do not validate every recovery path or replace longer competition runs.
 
-Repository templates still default to `allow_submit=false`. The completed canaries used their own explicitly enabled settings on Cirrus; those settings are not a blanket submission gate for other campaigns. The current controller optimises performance. It rejects efficiency and alternating objectives because a suitable benchmark-window measurement has not been verified. HPL's existing whole-job energy reporting remains available with its scope labelled explicitly.
+Repository templates still default to `allow_submit=false`. The completed canaries and overnight campaign used their own explicitly enabled settings on Cirrus; those settings are not a blanket submission gate for other campaigns. The current controller optimises performance. It rejects efficiency and alternating objectives because a suitable benchmark-window measurement has not been verified. HPL's existing whole-job energy reporting remains available with its scope labelled explicitly.
 
 ## Controller and budget semantics
 
@@ -41,7 +41,7 @@ Each worker runs one experiment inside its Slurm allocation, records it and sele
 
 The hard **campaign cap** is configurable up to 500 core-hours. Every durable submission intent is charged for its full exclusive-node allocation, including pending, running, completed, failed, cancelled and ambiguous submissions. Reservations are never refunded. Idle cores in under-populated layouts still cost 288 cores per node. Build timeout, benchmark runtime, setup margin, controller margin and Slurm minute rounding are included. A scheduler-visible increase in a campaign allocation is included in exposure; if exposure exceeds the cap the controller stops and requests cancellation of live campaign jobs.
 
-Admission is locked across reconciliation, reservation persistence and submission. The intent is written atomically **before** `sbatch`. Simultaneous controllers using the same ledger cannot reserve the same remaining allowance twice. Ambiguous submission responses remain charged and are reconciled by unique token, never blindly retried. An automated concurrency regression verifies one submission and bounded reservation under competing calls. The completed chain exercised the shared ledger and successor submission on Cirrus. Automated tests cover competing admissions; deliberate live lock contention and crash-recovery tests have not been performed.
+Admission is locked across reconciliation, reservation persistence and submission. The intent is written atomically **before** `sbatch`. Simultaneous controllers using the same ledger cannot reserve the same remaining allowance twice. Ambiguous submission responses remain charged and are reconciled by unique token, never blindly retried. An automated concurrency regression verifies one submission and bounded reservation under competing calls. The completed canary chain and nine-job overnight campaign exercised the shared ledger and successor submission on Cirrus. Automated tests cover competing admissions; deliberate live lock contention and crash-recovery tests have not been performed.
 
 Status separates these quantities:
 
@@ -75,25 +75,42 @@ The decision process is deliberately small:
 
 No response model pools measurements from different executable builds. Build comparison is an explicit matched experiment, not fitting one function to mixed binaries. Node counts race independently, so the chosen compiler/layout may differ at 1, 2 and 4 nodes. Keep `nodes=[1]` for the small initial design, or choose the desired counts **before init**. Weak scaling keeps equations per node approximately constant; strong scaling keeps total equations approximately constant and may violate final per-node memory requirements on larger node counts.
 
-A **synthetic automated test**, using the actual default reservation rules, screens four builds and then makes result-driven repeat/local-search decisions in seven trials totalling **489.6 reserved core-hours**. It also flips supplied anchor measurements and verifies that the chosen build changes. This demonstrates controller decisions within the cap; it is not a measured Cirrus performance result.
+A **synthetic automated test**, using the actual default reservation rules, screens four builds and then makes result-driven repeat/local-search decisions in seven trials totalling **489.6 reserved core-hours**. It also flips supplied anchor measurements and verifies that the chosen build changes. This earlier seven-trial synthetic fixture is separate from the nine-job overnight campaign. Their identical 489.6-hour reservation totals do not make the synthetic data a measured result; the actual campaign used different time allowances.
 
 Limitations: one anchor per compiler is a noisy, layout-specific screen. A compiler that loses at 288×1 could win at a different hybrid layout; this small-budget strategy can miss it. The local search is not globally optimal and the close band is not a formal confidence interval. Repeats reduce uncertainty but do not establish causal explanations. The initial budget cannot thoroughly cover all builds, layouts and node counts; use later, separately authorised focused comparisons for promising alternatives and scaling.
 
-## Current overnight diagnostic strategy
+## Completed overnight campaign: 15 October 2026
 
-We are using unattended optimisation so that a bounded sequence of useful experiments can run through Slurm without manual submission between jobs. Each result becomes evidence for the next choice: first compare compiler builds under matching conditions, then explore the observed winner's nearby MPI/OpenMP layouts and CPU utilisation. Repeat runs help assess whether a difference is larger than normal benchmark variation.
+The initial unattended campaign ran **02:30:45–03:10:28 BST**, completing **nine VALID diagnostic HPCG runs** on one exclusive node. Its ledger is `/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/campaign-overnight-20261015-01/state.json`; its settings are `controller-review/work/overnight-20261015.toml` under the same user run root. The settings values were verified against the frozen ledger hash. The first job was **558650** and the last was **558660**; [Experiment 7](experiment_log.md#experiment-7-overnight-adaptive-campaign--completed) records every job and measurement.
 
-The overnight search should use a realistic, memory-resident problem rather than the tiny canary grids. The measured reference workload used 323960832 equations and 231.733 GB of data on one node. CPU-layout comparisons keep equation counts approximately comparable; executable hashes and per-build records prevent measurements from different builds being treated as one response model. Node-count optima are evaluated separately.
+The campaign used a performance objective, 120 requested benchmark seconds, a target of 323960832 equations per node and a 2.5% volume tolerance. Reported data memory was approximately 229–232 GB, rather than the sub-gigabyte canary problems. The enabled builds were CCE reference, CCE strict, GCC 14 and AOCC 5. The search allowed OpenMP counts 1/2/4/6/12 and CPU fill fractions 1, 0.5 and 0.25, with up to two measurements per candidate.
 
-Short diagnostics are an affordable way to eliminate poor configurations and check correctness before committing to official 30-minute runs. They also test whether setup and memory costs fit the allocation. A short numerical validation pass is not an official result and does not establish long-run stability or energy efficiency.
+The selection log shows the intended adaptive behavior in practice:
 
-The controller reserves every allocation against a fixed campaign cap before submission, then submits the successor only after recording and validating the previous experiment. It stops when no suitable experiment fits the remaining budget, the trial/repeat or deadline limits are reached, or a critical failure occurs. A pending job that expires before starting also stops the chain until inspection/resume. The 500-core-hour hard ceiling is a controller limit, not evidence of any particular overnight campaign's authorised allocation or the team's live SAFE balance.
+1. Four matched 288×1, 104³-local-grid compiler anchors screened the builds.
+2. A repeat of CCE reference produced a **134.918 GFLOP/s** baseline mean from jobs 558650 and 558656. The four anchors were within the provisional 2% close band.
+3. The controller focused on CCE reference and tried **144×1** (558657), then used its **135.342 GFLOP/s** observation as the pivot for **144×2** (558658) and **72×1** (558659).
+4. It repeated GNU (558660) to investigate variation. The GNU anchor pair averaged 134.051 GFLOP/s, compared with 133.793 for the single AOCC anchor and 132.918 for the single CCE strict anchor.
 
-**Overnight campaign details are not yet verified.** At the documentation check, the submitting user's queue was empty and the inspected campaign directory contained the completed canary ledgers. No overnight ledger, live configuration or job ID was identified there. Those details will be added once checked against the actual campaign. The overnight optimisation is not recorded as active or completed here.
+Job 558657 is a candidate improvement, not a confirmed speedup. The **0.31%** comparison uses a single 144×1 observation against a two-run baseline. The candidate also had about **0.96% fewer equations** and a different decomposition. The compiler screen likewise has too few repeats to establish a general ranking, and losing builds were not explored across all hybrid layouts. The next work is repeated, closely matched candidate-versus-baseline measurements.
+
+### Budget and stopping evidence
+
+The campaign had a **500-core-hour reservation cap**, a maximum of twelve trials, and a **10:00 BST deadline**. Its 120-second diagnostics used 420 seconds of overhead allowance and 60 seconds of controller margin; recipe builds also reserved a 180-second compile timeout. This gave 48 core-hours per CCE-reference trial and 62.4 per other-build trial, including repeats.
+
+The nine trials retained **489.6 core-hours of reservations**. Job 558660's output records `candidate/repeat or remaining budget limit`: only **10.4 core-hours** remained, below the 48-hour minimum next reservation. This was a clean admission-budget stop, not a failed result, trial-limit stop or deadline expiry.
+
+Actual allocation usage from the nine allocation-level Slurm records was **190.16 core-hours**: `2377 elapsed seconds × 288 allocated CPUs / 3600`. Idle cores in the 144×1 and 72×1 layouts remained part of whole-node allocations. Actual usage includes work outside the timed solve; it is not the benchmark-only compute cost or a verified team SAFE debit. The ledger's reservations were not refunded to extend the campaign automatically.
+
+### Diagnostic and energy limits
+
+All reported benchmark windows were approximately **132–136 seconds**, below 1800 seconds. Numerical VALID status does not make these official competition results. Short diagnostics allowed compiler/layout screening and noise checks before committing the resources for final 30-minute benchmarks.
+
+Slurm's nine whole-job energy readings sum to **2337351 J**. They include startup, setup, controller work and compilation where performed, so they are not benchmark-window energy. Every result records benchmark-window energy as unavailable and leaves benchmark GFLOP/s/W unreported. Reduced configured CPU utilisation alone does not demonstrate an energy-efficiency improvement. The campaign optimised measured performance only.
 
 ## Results, energy and validation
 
-Fresh run directories retain inputs, provenance, compiler/build manifests, Slurm output and `result.json`. The state ledger records each decision and reservation. Existing experiment logs and result CSVs are untouched. `status` reports grouped means/standard deviations; `status --scheduler` adds current user-scoped scheduler exposure and whole-job energy.
+Fresh run directories retain inputs, provenance, compiler/build manifests, Slurm output and `result.json`. The state ledger records each decision and reservation. The controller preserves earlier result files; historical experiment notes are maintained separately in the experiment log. `status` reports grouped means/standard deviations; `status --scheduler` adds current user-scoped scheduler exposure and whole-job energy.
 
 A usable HPCG result needs successful process exit, one fresh summary, finite positive performance, all four passed V&V checks, matching ranks/threads/local grid, plausible runtime and safe reported data memory. Invalid or incomplete results are recorded as failed and create `STOP` before any successor submission. Failed Slurm jobs discovered during reconciliation also block the chain. There is no automatic failure retry.
 
@@ -129,7 +146,7 @@ The chain reserves two minutes per job. Each build canary reserves twelve minute
 
 The completed ledgers are `campaign-chain-01`, `campaign-gnu-01`, `campaign-aocc-01` and `campaign-cce-strict-01` under `/epccfs/tc079/tc079/shared/hpcg/runs/tc079cheu1/`. The deployed controller is under `controller-review/` in that same directory. Each run retains `result.json`, `build.json`, `provenance.json`, `compiler.txt`, loaded-module information and raw HPCG output. Build directories retain the recipe, executable and its hash. These records were checked read-only for this documentation update.
 
-Do not overwrite or reinitialise the completed campaign directories. A new campaign needs its own reviewed settings, ledger and budget allowance. Tests or generated canary configurations do not authorise overnight submissions. Both an explicitly enabled settings gate and `tick --submit` are required for a new launch; this documentation update does neither.
+Do not overwrite or reinitialise the completed campaign directories. A new campaign needs its own reviewed settings, ledger and budget allowance. Generated canary settings do not authorise any further campaign; the completed overnight run used its own campaign-specific settings. Both an explicitly enabled settings gate and `tick --submit` are required for a new launch; this documentation update does neither.
 
 ## Stop and explicit recovery
 
@@ -151,10 +168,10 @@ This records the acknowledgement, retains every reservation, excludes failed can
 
 An ambiguous `sbatch` response retains an intent and reservation. Reconcile against the scheduler first. Only after confirming absence with healthy scheduler/accounting data may a human use `abandon --state ... --token ...`; this retains cost and cannot abandon a visible live job. It is not an automatic retry mechanism.
 
-## Planned validation and final benchmarking
+## Current work and planned final benchmarking
 
-The single-node chaining and compiler canaries are completed. The next work is representative memory-size diagnostics, repeat measurements and one-to-four-node scaling. Compiler and layout choices should remain provisional until those measurements are available.
+The single-node canaries and initial representative overnight campaign are completed. The next task is to repeat the 144×1 CCE reference candidate against the 288×1 baseline with closely matched workloads and interleaved order. The apparent 0.31% gain remains unconfirmed. Follow-up work will examine other promising compiler/layout combinations and one-to-four-node scaling; a one-node optimum is not assumed to transfer unchanged.
 
-Long-run stability, budget/deadline exhaustion, live pending-job edge cases, deliberate failure recovery and simultaneous live admissions have not all been demonstrated by the small successful chain. Automated tests cover these safeguards, but passing them does not prove every site-specific failure mode.
+The overnight run demonstrated a clean no-fit reservation-budget stop. Deadline expiry, live pending-job edge cases, deliberate failure/crash recovery and simultaneous live admissions have not all been demonstrated by these successful runs. Automated tests cover the safeguards, but do not prove every site-specific failure mode.
 
-Final competition runs need at least 1800 reported benchmark seconds, the required memory footprint and reproducible performance/energy evidence. Benchmark-window instrumentation and multi-node energy aggregation still require verification; SAFE remains an external team check. The final results, scripts and presentation material will be assembled from qualifying measurements. No official 30-minute result or completed overnight optimisation is claimed in the current records.
+Final competition runs need at least 1800 reported benchmark seconds, the required memory footprint and reproducible performance/energy evidence. Benchmark-window instrumentation and multi-node energy aggregation still require verification; SAFE remains an external team check. The final results, scripts and presentation material will be assembled from qualifying measurements. No official 30-minute result or running follow-up campaign is claimed in the current records.

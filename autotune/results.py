@@ -20,8 +20,9 @@ COLUMNS = [
 # validation:   HPL "PASSED"/"FAILED"; HPCG "VALID"/"INVALID"; otherwise "unknown"
 # parse_status: "ok", "no_result_found", "no_output", "unsupported"
 # energy_source: "pm_counters" (benchmark window, all nodes), "sacct" (whole job), "manual"
-# energy_status: "ok", "missing", "inconsistent", "unverified_multinode", "low_resolution"
-# Efficiency (avg_power_w, gflops_per_w) is only filled when energy_status == "ok".
+# energy_status: "whole_job" (explicit scope), "ok", "missing", "inconsistent", "unverified_multinode", "low_resolution"
+# HPL retains whole-job efficiency with energy_status="whole_job".
+# HPCG efficiency requires energy_status="ok"; whole-job energy never qualifies.
 
 # Set to True only after a real multi-node run shows the per-node counter files sum to a
 # sensible total (e.g. close to sacct's ConsumedEnergyRaw for that job). Until then, multi-node
@@ -97,7 +98,7 @@ def parse_sacct(text, job_id, min_window_s=0):
             if energy:
                 window = _slurm_seconds(fields[1])
                 return {"energy_j": energy, "energy_window_s": window, "energy_source": "sacct",
-                        "energy_status": "ok" if window >= min_window_s else "low_resolution"}
+                        "energy_status": "whole_job" if window >= min_window_s else "low_resolution"}
     return {"energy_source": "sacct", "energy_status": "missing"}
 
 
@@ -245,8 +246,9 @@ def make_row(
 ):
     """Combine config + parsed output + energy dict into one CSV row dict.
 
-    avg_power_w = energy_j / energy_window_s (all nodes together); gflops_per_w = gflops /
-    avg_power_w, only when energy_status == "ok". The window covers the whole benchmark process
+    avg_power_w = energy_j / energy_window_s (all nodes together). HPL retains
+    its historical whole-job GFLOPS/W, explicitly labelled energy_status="whole_job".
+    HPCG never derives efficiency from that scope. The window covers the whole benchmark process
     (setup + solve), while gflops covers only the timed phase, so short runs read a little low.
     """
     p = cfg.params
@@ -274,7 +276,10 @@ def make_row(
         row[k] = p.get(k, "")
     row.update({k: v for k, v in parsed.items() if k in COLUMNS})
     row.update({k: v for k, v in energy.items() if k in COLUMNS})
-    if row["energy_status"] == "ok":
+    usable_energy = row["energy_status"] == "ok" or (
+        cfg.benchmark == "hpl" and row["energy_status"] == "whole_job"
+    )
+    if usable_energy:
         row["avg_power_w"] = row["energy_j"] / row["energy_window_s"]
         if row["gflops"] != "":
             row["gflops_per_w"] = row["gflops"] / row["avg_power_w"]
@@ -347,7 +352,7 @@ def record_run(run_dir, job_id, log, sacct_text=None, min_window_s=0, manual=(No
     energy = read_pm_counters(run_dir, cfg.nodes)
     if energy["energy_status"] == "missing":
         energy = sacct or manual_energy(*manual)
-    elif sacct and sacct["energy_status"] == "ok" and "energy_j" in energy:
+    elif sacct and sacct["energy_status"] in ("ok", "whole_job") and "energy_j" in energy:
         print(f"cross-check: counters {energy['energy_j']:.0f} J over benchmark window, "
               f"sacct {sacct['energy_j']:.0f} J over whole job")
     row = make_row(

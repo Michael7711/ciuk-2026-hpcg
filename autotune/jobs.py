@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 from dataclasses import asdict
 from functools import lru_cache
@@ -185,7 +186,7 @@ def run_id(cfg, settings, replicate=None):
 
 def walltime_s(cfg, settings):
     if cfg.benchmark == "hpcg":
-        return cfg.params["runtime_s"] + 600  # benchmark time + setup/teardown margin
+        return cfg.params["runtime_s"] + settings["slurm"].get("hpcg_overhead_s", 600)
     return settings["slurm"]["walltime_s"]
 
 
@@ -214,7 +215,9 @@ def render_job_script(cfg, settings, hw, run_dir, run_name):
               (("account", s.get("account")), ("partition", s.get("partition")), ("qos", qos)) if val]
     lines += [f"#SBATCH {d}" for d in s.get("extra_directives", [])]  # cluster quirks, e.g. --mem=0
     lines += ["", "set -e", f'cd "{run_dir}"']
-    lines += [f"module load {m}" for m in s.get("modules", [])]
+    if s.get("reset_modules"):
+        lines += ["module restore"]
+    lines += [f"module load {shlex.quote(m)}" for m in s.get("modules", [])]
     env = {
         "OMP_NUM_THREADS": cfg.threads,
         "OMP_PROC_BIND": "close",
@@ -230,6 +233,8 @@ def render_job_script(cfg, settings, hw, run_dir, run_name):
         "lscpu -e=CPU,CORE,NODE,CACHE > topology.txt 2>&1 || true  # which logical CPUs share a core / L3",
         "",
     ]
+    if s.get('reset_modules'):
+        lines += [f'ldd {shlex.quote(str(binary))} > libs.txt 2>&1', 'CC --version > compiler.txt 2>&1']
     delay = s.get("thread_sample_after_s", 0)
     if delay:  # only sees this (first) node: enough for single-node runs
         snap = "{ date +%s; ps -eLo pid,tid,psr,cputimes,comm; echo PROCESS; ps -eo pid,cputimes,nlwp,comm; }"
@@ -248,7 +253,7 @@ def render_job_script(cfg, settings, hw, run_dir, run_name):
         " ".join(["srun", *([f"--nodes={cfg.nodes}", f"--ntasks-per-node={cfg.ranks_per_node}"] if s.get("inline") else []),
                   f"--cpus-per-task={share}", "--cpu-bind=verbose,cores",
                   "--distribution=block:block", "--hint=nomultithread", *s.get("srun_flags", []),
-                  "./bench_wrapper.sh", str(binary)]),
+                  "./bench_wrapper.sh", shlex.quote(str(binary))]),
     ]
     lines += ['kill $POLL_PID 2>/dev/null || true'] if poll else []
     lines += [""]
@@ -263,7 +268,7 @@ def prepare_run(cfg, settings, hw, runs_dir, replicate=None):
     run_dir = Path(os.path.abspath(runs_dir)) / name
     prefix = settings.get('paths', {}).get('required_prefix', '')
 
-    if not str(run_dir).startswith(prefix):
+    if prefix and not run_dir.resolve().is_relative_to(Path(prefix).resolve()):
         raise ValueError(
             f'{run_dir} must be under {prefix} '
             '(compute nodes cannot see other filesystems)'
