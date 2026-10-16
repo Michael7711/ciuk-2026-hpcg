@@ -1,6 +1,6 @@
 # CIUK Cluster Challenge 2026 – HPCG Benchmark
 
-This log separates completed diagnostic experiments, completed official-duration benchmarks, analysis and possible future work. Numerical `VALID` status and the controller's duration/memory eligibility checks do not establish formal competition acceptance. As of the team update on 15 October 2026, all further HPCG compute jobs are paused while remaining HPL requirements are coordinated.
+This log separates completed diagnostic experiments, completed official-duration benchmarks, analysis and possible future work. Numerical `VALID` status and the controller's duration/memory eligibility checks do not establish formal competition acceptance. HPCG compute was paused as of the 15 October team update; a subsequent **16 October team budget top-up and teammate diagnostics** are recorded below. Those later findings are team-reported, not independently verified against their original job artifacts here.
 
 ## HPCG Benchmark: 14OCT2026
 
@@ -470,9 +470,9 @@ The experiments demonstrated normal unattended operation, reproducible build ide
 
 These observations do **not** prove a globally optimal compiler/layout or an energy optimum. There is one official measurement per node count, no repeated official scaling curve, and no official-duration 72×1 comparison. The earlier apparent 0.31% diagnostic improvement over 288×1 remains unconfirmed by matched repeated measurements. Benchmark-window counter access, synchronisation and sensor calibration remain unverified, as do formal competition acceptance and some live failure/deadline/crash/concurrent-admission paths. Automated safeguards and successful normal runs do not establish every site-specific failure behavior.
 
-## Current Team Budget and Compute Pause
+## Historical Team Budget and Compute Pause — 15 October
 
-The team has confirmed a **5000-core-hour total allocation**. The latest team-supplied **shared Slurm accounting snapshot**, recorded for this documentation update on **15 October 2026**, showed:
+At this point in the challenge, the team had confirmed a **5000-core-hour total allocation**. The latest team-supplied **shared Slurm accounting snapshot**, recorded for this documentation update on **15 October 2026**, showed:
 
 | Quantity | Snapshot value (core-hours) |
 |---|---:|
@@ -482,7 +482,48 @@ The team has confirmed a **5000-core-hour total allocation**. The latest team-su
 
 `5000 − 4294.48 = 705.52`. This is a dated accounting estimate, **not a verified live SAFE balance**. The exact export timestamp and underlying shared-team report were not supplied or independently verified during this review; the **20:56:13 BST** timestamp above belongs to the official campaign's energy archive, not this shared balance report. Other team jobs may change the balance. Do not treat old template/advisory values or the campaign's unspent reservation margin as current shared funds.
 
-**All further HPCG compute jobs are paused while the team coordinates the remaining HPL requirements.** The additional **72×1 official-duration experiment has not been launched**. This is the team's operational pause; this documentation update does not change any submission gate, job or campaign state.
+**As of this 15 October snapshot, further HPCG jobs were paused** while the team coordinated HPL requirements. The additional **72×1 official-duration experiment had not been launched**. This was a historical operational status, superseded by the 16 October team discussion below; it is not a current prohibition on the team's separately coordinated jobs. This documentation change does not authorise or submit any Slurm work.
+
+## Team Update — 16 October 2026: Additional Allowance and Low-Core HPCG Diagnostics (teammate-reported)
+
+**Source and evidence status:** The information in this section comes from the team's Discord messages on 15–16 October, particularly **roghurt**'s 14:16 and 14:38 updates and **cotenthusiast**'s 09:54–15:17 coordination. These are teammate reports, **not new experiments run by the author of this log**. The original Slurm job IDs, full HPCG reports, energy-accounting records, binaries and exact measurement-window definitions for these new runs have **not** been inspected or archived in this repository as part of this update. The reported GFLOP/s/W values must be treated as provisional.
+
+### Shared budget timeline (not a live SAFE query)
+
+| When | Team-reported position | Interpretation |
+|---|---|---|
+| 15 Oct, earlier documentation snapshot | 4294.48 of 5000 core-hours used; 705.52 estimated left | Historical team-supplied accounting estimate, recorded above. |
+| 15 Oct, later team message (approximately 22:25 BST) | 4504.60 of 5000 core-hours used; **495.40 estimated left** | Later shared Slurm tally, consistent with the informal description that the team had roughly 400–500 hours left; this is not a live SAFE balance. |
+| 16 Oct, 09:54 BST | Team announced an **additional 2000 hours per team** | Reported new allocation, not independently checked in SAFE here. If these are core-hours added to the same 5000-hour allowance, the nominal cumulative allocation becomes **7000 core-hours**. |
+| 16 Oct, after top-up | New HPCG and HPL testing was discussed or started by teammates | **Current remaining balance unknown**; do not compute a live balance by simply adding 2000 to yesterday's estimate, as subsequent jobs also consume the shared budget. |
+
+The original 500- and 1500-core-hour *controller campaign caps* in Experiments 7–8 are historical, frozen per-campaign settings; they did not automatically increase when the team reported a new allocation. The earlier campaign figures must not be rewritten as if the additional allocation existed at the time.
+
+### New lower-core search and matched-problem-size observations
+
+At **14:16**, roghurt quoted earlier **60-second results from cotenthusiast's documentation**: 72×1 at 132.3 GFLOP/s / 841 W / 0.1573 estimated GFLOP/s/W; 48×1 at 129.2 / 804 / 0.1607; and 24×1 at 102.0 / 701 / 0.1456. These quoted values are background context, **not independently verified runs by the author**.
+
+At **14:38**, roghurt reported a new approximately matched-total-equations comparison:
+
+| Teammate's setting | Equations from rank count × local grid³ | Reported HPCG GFLOP/s | Reported average W | Reported GFLOP/s/W |
+|---|---:|---:|---:|---:|
+| 24 MPI × 1 thread, local 232³ | 299,692,032 | 103.65 | 719 | 0.1442 |
+| **48 MPI × 1 thread, local 184³** | **299,016,192** | **129.84** | **802** | **0.1620** |
+| 72 MPI × 1 thread, local 160³ | 294,912,000 | 131.88 | 836 | 0.1578 |
+
+The grid-derived equation counts are calculated from the teammate's reported layouts; they are **not checked against raw HPCG reports**. All three are approximately 295–300 million equations, rather than the original official 144×1 campaign's **320,864,256 equations per node**. This is a reasonably comparable diagnostic sweep, but it is **not** an identical-workload comparison with the original official campaign. The duration and precise joule-to-watt measurement interval of the 14:38 runs have not been confirmed from original records; do not automatically assume these runs meet the competition's 1800-second requirement.
+
+**Interpretation:** Among these *reported short-run candidates*, 48×1 has the highest reported energy efficiency. Compared with 72×1, it produces approximately **1.55% less throughput** while using approximately **4.07% less reported power**, leading to about **2.66% higher GFLOP/s/W**. The limited number of measurements, slight equation-count differences, and unspecified measurement scope mean this **does not establish a statistically supported or official-duration optimum**. Possible memory-bandwidth or affinity effects are hypotheses, not confirmed diagnoses.
+
+At **15:13**, cotenthusiast encouraged promoting 48×1 to a 30-minute test. The team also discussed scaling promising configurations and investigating additional HPL compilers/BLAS libraries. **No completed new 30-minute 48×1 run, 1/2/3/4-node sequence, VALID status, new job ID, or final accounting was supplied in these messages.** These remain planned or in-progress until primary job artifacts are checked. The nine compiler/BLAS runs cotenthusiast mentioned at 15:17 concern the **HPL** effort and must not be mixed into the HPCG evidence.
+
+### What this changes in the analysis
+
+- The author's original controller screened down to **72 active cores**, not 48 or 24. The later teammate results suggest that an **earlier, energy-focused sweep below 72 cores** would have been a useful follow-up to the diagnostic 72×1 efficiency observation. This identifies a limitation in the search-space and objective design; it does not retroactively prove the old campaign was wrong.
+- The original controller selected on **HPCG throughput (GFLOP/s)**; the newer team investigation explicitly explores the **performance/energy trade-off**. That distinction should be reflected in the final presentation rather than claiming the overnight controller had optimised GFLOP/s/W.
+- Before any new 48×1 candidate is labelled an official result, check its original HPCG `VALID` report, actual **≥1800-second reported HPCG benchmark runtime**, memory eligibility, binary and grid consistency, Slurm energy measurement scope, node allocation and reproducibility records.
+- Do not combine the author's 144×1 official 1/2/4-node scaling numbers and another candidate's single-node figure into a supposedly unified scaling curve. A separate configuration needs consistent per-node measurements at the node counts used for its scaling claim.
+- Additional compute should be coordinated to avoid duplicate runs. The author's prior 1/2/4-node official benchmark is already complete; these later tests are potential **optimisation evidence**, not a replacement for the validated historic run logs.
 
 ## Possible Future Work — Compute Subject to Team Agreement
 
