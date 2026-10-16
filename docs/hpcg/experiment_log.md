@@ -517,6 +517,23 @@ The grid-derived equation counts are calculated from the teammate's reported lay
 
 At **15:13**, cotenthusiast encouraged promoting 48×1 to a 30-minute test. The team also discussed scaling promising configurations and investigating additional HPL compilers/BLAS libraries. **No completed new 30-minute 48×1 run, 1/2/3/4-node sequence, VALID status, new job ID, or final accounting was supplied in these messages.** These remain planned or in-progress until primary job artifacts are checked. The nine compiler/BLAS runs cotenthusiast mentioned at 15:17 concern the **HPL** effort and must not be mixed into the HPCG evidence.
 
+### Team follow-up — 16:36–16:46 BST: Longer 48×1 run reported
+
+At **16:36 BST**, roghurt reported that the **48×1 longer/final run** produced **129.28 GFLOP/s**, **853 W** and **0.15154 GFLOP/s/W**, whereas its earlier approximately matched-workload short diagnostic showed **129.84 GFLOP/s**, **802 W** and **0.1620 estimated GFLOP/s/W**. The team's table also described an existing **96×1 final run** at **133.69 GFLOP/s**, **915 W** and **0.1461 GFLOP/s/W**. A comparable official-duration **72×1** result was not available.
+
+| Team-reported configuration | GFLOP/s | Average power (W) | GFLOP/s/W | Evidence status |
+|---|---:|---:|---:|---|
+| 48×1, earlier short diagnostic | 129.84 | 802 | 0.1620 | Short teammate measurement; original records not inspected |
+| **48×1, later longer/final run** | **129.28** | **853** | **0.15154** | Teammate labels final; raw HPCG duration, `VALID`, memory, job ID, power scope still unverified here |
+| 72×1, longer/final run | — | — | — | Not reported |
+| **96×1, longer/final run** | **133.69** | **915** | **0.1461** | Teammate labels final; original records and comparability unverified here |
+
+For the two *reported final* points, 48×1 produces about **3.30% less throughput**, consumes about **6.78% less average power**, and has about **3.72% higher reported GFLOP/s/W** relative to 96×1. This is an observed comparison, **not** a proven optimum or an established statistically significant difference. Confirm matching run durations, workload sizes, binaries, and power measurement scopes before placing both in a final evidence table. Do not conflate this 96×1 teammate result with the author's earlier 144×1 official weak-scaling campaign.
+
+The 48×1 power figures **802 W → 853 W** correspond to approximately **6.36%** higher power, not the **7.33%** reported in the same teammate message. That discrepancy may reflect a different earlier reference measurement or rounding; check original logs rather than silently adjusting the teammate's claim. The associated efficiency estimate decreased from approximately **0.1620** to **0.15154 GFLOP/s/W**, illustrating the danger of selecting a configuration solely from short-run energy measurements.
+
+At **16:44–16:46**, the team discussed whether to fill the missing 72×1 official-duration point or add a three-node HPCG run; the author confirmed **they had not run a three-node job**. Neither proposed run is recorded here as submitted or completed. The original official 144×1 campaign already includes 1-, 2- and 4-node benchmarks. A 72×1 **one-node** official-duration run would directly inform the near-optimum energy-efficiency question more than an additional three-node test, but any new run depends on an agreed team allowance and avoiding duplicate submissions.
+
 ### What this changes in the analysis
 
 - The author's original controller screened down to **72 active cores**, not 48 or 24. The later teammate results suggest that an **earlier, energy-focused sweep below 72 cores** would have been a useful follow-up to the diagnostic 72×1 efficiency observation. This identifies a limitation in the search-space and objective design; it does not retroactively prove the old campaign was wrong.
