@@ -486,7 +486,7 @@ At this point in the challenge, the team had confirmed a **5000-core-hour total 
 
 ## Team Update — 16 October 2026: Additional Allowance and Low-Core HPCG Diagnostics (teammate-reported)
 
-**Source and evidence status:** The information in this section comes from the team's Discord messages on 15–16 October, particularly **roghurt**'s 14:16 and 14:38 updates and **cotenthusiast**'s 09:54–15:17 coordination. These are teammate reports, **not new experiments run by the author of this log**. The original Slurm job IDs, full HPCG reports, energy-accounting records, binaries and exact measurement-window definitions for these new runs have **not** been inspected or archived in this repository as part of this update. The reported GFLOP/s/W values must be treated as provisional.
+Teammate reports, **not new experiments run by the author of this log**. The original Slurm job IDs, full HPCG reports, energy-accounting records, binaries and exact measurement-window definitions for these new runs have **not** been inspected or archived in this repository as part of this update. The reported GFLOP/s/W values must be treated as provisional.
 
 ### Shared budget timeline (not a live SAFE query)
 
