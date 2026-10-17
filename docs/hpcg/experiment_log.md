@@ -468,7 +468,7 @@ The project progressed from the initial small Slurm pipeline tests to **558642 �
 
 The experiments demonstrated normal unattended operation, reproducible build identity, numerical validation, result-driven diagnostic selection, a clean no-fit reservation stop, fixed coverage of each node count, and automatic accounting capture followed by final archival. Near-linear weak scaling was observed for the chosen CCE 144×1 configuration. The two-node run had the highest step-based efficiency estimate in the official sequence; the four-node run had the highest total performance and power.
 
-These observations do **not** prove a globally optimal compiler/layout or an energy optimum. There is one official measurement per node count, no repeated official scaling curve, and no official-duration 72×1 comparison. The earlier apparent 0.31% diagnostic improvement over 288×1 remains unconfirmed by matched repeated measurements. Benchmark-window counter access, synchronisation and sensor calibration remain unverified, as do formal competition acceptance and some live failure/deadline/crash/concurrent-admission paths. Automated safeguards and successful normal runs do not establish every site-specific failure behavior.
+These observations do **not** prove a globally optimal compiler/layout or an energy optimum. In the author's own 144×1 campaign there is one official measurement per node count and no repeated official scaling curve; a later teammate-reported 72×1 one-node result and 48×1/72×1 two-node comparisons are recorded below. The earlier apparent 0.31% diagnostic improvement over 288×1 remains unconfirmed by matched repeated measurements. Benchmark-window counter access, synchronisation and sensor calibration remain unverified, as do formal competition acceptance and some live failure/deadline/crash/concurrent-admission paths. Automated safeguards and successful normal runs do not establish every site-specific failure behavior.
 
 ## Historical Team Budget and Compute Pause — 15 October
 
@@ -532,13 +532,38 @@ For the two *reported final* points, 48×1 produces about **3.30% less throughpu
 
 The 48×1 power figures **802 W → 853 W** correspond to approximately **6.36%** higher power, not the **7.33%** reported in the same teammate message. That discrepancy may reflect a different earlier reference measurement or rounding; check original logs rather than silently adjusting the teammate's claim. The associated efficiency estimate decreased from approximately **0.1620** to **0.15154 GFLOP/s/W**, illustrating the danger of selecting a configuration solely from short-run energy measurements.
 
-At **16:44–16:46**, the team discussed whether to fill the missing 72×1 official-duration point or add a three-node HPCG run; the author confirmed **they had not run a three-node job**. Neither proposed run is recorded here as submitted or completed. The original official 144×1 campaign already includes 1-, 2- and 4-node benchmarks. A 72×1 **one-node** official-duration run would directly inform the near-optimum energy-efficiency question more than an additional three-node test, but any new run depends on an agreed team allowance and avoiding duplicate submissions.
+At **16:44–16:46**, the team discussed whether to fill the then-missing 72×1 official-duration point or add a three-node HPCG run; the author confirmed **they had not run a three-node job**. At that time neither proposed run was reported as submitted or completed; the subsequent 72×1 results are recorded immediately below. The original official 144×1 campaign already includes 1-, 2- and 4-node benchmarks. A 72×1 **one-node** official-duration run would directly inform the near-optimum energy-efficiency question more than an additional three-node test, but any new run depends on an agreed team allowance and avoiding duplicate submissions.
+
+### Team follow-up — 19:20–21:11 BST: 48×1 and 72×1 two-node comparison
+
+On **16 October 2026**, roghurt reported official/final-duration **one-node and two-node HPCG** measurements for two reduced-rank configurations. His **19:20** message filled the previously missing 72×1 one-node result, and his **21:11** message supplied the 1→2-node comparison. These figures were shared in Discord, **not independently checked here** against HPCG summaries, job IDs, benchmark duration, `VALID` status, physical-memory use, binary identity, exact grids or Slurm energy accounting. Do not imply formal competition acceptance without those artifacts. Power figures and GFLOP/s/W are reported **estimates of average power and energy efficiency**, with the measurement window still unconfirmed.
+
+| MPI ranks per node × OMP threads | Nodes | GFLOP/s (reported) | Average power (W, reported) | Estimated GFLOP/s/W | Source |
+|---|---:|---:|---:|---:|---|
+| **48×1** | 1 | **129.282** | **853.10** | **0.151543** | roghurt, 21:11 |
+| **48×1** | 2 | **259.357** | **1771.32** | **0.146420** | roghurt, 21:11 |
+| **72×1** | 1 | **132.179** | **873.83** | **0.151264** | roghurt, 21:11 |
+| **72×1** | 2 | **263.227** | **1851.93** | **0.142137** | roghurt, 21:11 |
+| 96×1 | 1 | 133.69 | 915 | 0.1461 | Earlier teammate-reported final result; no matching two-node result given |
+
+Reported and arithmetically checked weak scaling for the two new configurations (total work is presumed to increase with nodes, **subject to confirmation of constant per-node grid and workload in the raw files**):
+
+| Configuration | 2-node speedup versus its own 1-node result | Ideal weak-scaling efficiency = P₂/(2 × P₁) |
+|---|---:|---:|
+| 48×1 | 259.357 / 129.282 = **2.006×** | **100.31%** |
+| 72×1 | 263.227 / 132.179 = **1.991×** | **99.57%** |
+
+An observed efficiency slightly over 100% reflects measurement differences or effects not established by these figures; it is **not** more than 100% of the machine's theoretical peak FLOP/s. Neither candidate's scaling efficiency is a substitute for checking workload identity or measurement repeatability.
+
+**Comparison:** At one node, the reported 48×1 and 72×1 efficiencies are effectively tied (**0.151543 versus 0.151264 GFLOP/s/W**, about **0.18%** apart). At two nodes, 48×1 is approximately **3.01% more energy-efficient**, while delivering about **1.47% less throughput** and consuming approximately **4.35% less reported power** than 72×1. These are small-to-moderate observed differences, **not statistically verified advantages or a global optimum**. The original author's **144×1** 1/2/4-node official campaign remains an independent performance/scaling baseline with a different per-node equation count and potentially different energy-measurement window.
+
+**Evidence still needed for any formal final-result claim:** exact Slurm job IDs and statuses; raw HPCG reports proving `VALID`, at least **1800 seconds** of reported benchmark time, and required data-memory use; executable/compiler and MPI/OpenMP settings; identical *per-node* problem size between 1 and 2 nodes; precise scope of energy and power calculations; and preferably repeatability checks. This documentation update does not submit jobs or modify existing benchmark artifacts. No **3- or 4-node reduced-rank** official result was provided in these messages.
 
 ### What this changes in the analysis
 
 - The author's original controller screened down to **72 active cores**, not 48 or 24. The later teammate results suggest that an **earlier, energy-focused sweep below 72 cores** would have been a useful follow-up to the diagnostic 72×1 efficiency observation. This identifies a limitation in the search-space and objective design; it does not retroactively prove the old campaign was wrong.
 - The original controller selected on **HPCG throughput (GFLOP/s)**; the newer team investigation explicitly explores the **performance/energy trade-off**. That distinction should be reflected in the final presentation rather than claiming the overnight controller had optimised GFLOP/s/W.
-- Before any new 48×1 candidate is labelled an official result, check its original HPCG `VALID` report, actual **≥1800-second reported HPCG benchmark runtime**, memory eligibility, binary and grid consistency, Slurm energy measurement scope, node allocation and reproducibility records.
+- Before any teammate-reported reduced-rank candidate is labelled an independently verified official result, check its original HPCG `VALID` report, actual **≥1800-second reported HPCG benchmark runtime**, memory eligibility, binary and grid consistency, Slurm energy measurement scope, node allocation and reproducibility records.
 - Do not combine the author's 144×1 official 1/2/4-node scaling numbers and another candidate's single-node figure into a supposedly unified scaling curve. A separate configuration needs consistent per-node measurements at the node counts used for its scaling claim.
 - Additional compute should be coordinated to avoid duplicate runs. The author's prior 1/2/4-node official benchmark is already complete; these later tests are potential **optimisation evidence**, not a replacement for the validated historic run logs.
 
@@ -547,7 +572,7 @@ At **16:44–16:46**, the team discussed whether to fill the missing 72×1 offic
 Current non-compute work is to analyse and present the completed measurements, retain original reports and accounting, and confirm the competition's acceptance and energy-reporting requirements. Any later compute work needs a newly agreed allowance after HPL coordination:
 
 - Repeat matched 144×1 and 288×1 comparisons before accepting the apparent 0.31% diagnostic improvement.
-- Consider the unlaunched 72×1 official-duration comparison and other compiler/layout choices, accounting for measurement variation and node count.
+- Verify the subsequently reported teammate 48×1/72×1 official-duration one- and two-node experiments from raw reports, accounting data and exact problem sizes; these no longer constitute a *missing* 72×1 one-node result in the team's reported measurements.
 - Repeat the weak-scaling curve if an agreed budget permits; do not infer an optimum from one run per scale.
 - Investigate synchronised, per-node measurement of the actual timed HPCG region before reporting benchmark-window GFLOP/s/W.
 
